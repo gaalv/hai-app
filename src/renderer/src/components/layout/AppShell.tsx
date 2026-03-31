@@ -13,7 +13,7 @@ export function AppShell(): JSX.Element {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0a0a0a', color: '#888', fontFamily: 'monospace' }}>
+      <div className="flex items-center justify-center min-h-screen bg-[var(--bg)] text-[var(--text-3)] text-sm">
         Carregando...
       </div>
     )
@@ -21,11 +21,14 @@ export function AppShell(): JSX.Element {
 
   if (error && !config) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0a0a0a', color: '#e5e5e5', fontFamily: 'monospace', gap: 16 }}>
-        <p style={{ color: '#f87171' }}>{error}</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[var(--bg)] gap-4">
+        <p className="text-red-400 text-sm">{error}</p>
         <button
-          onClick={() => { useVaultStore.getState().clearVault(); useVaultStore.getState().setError(null) }}
-          style={{ padding: '10px 16px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'monospace' }}
+          onClick={() => {
+            useVaultStore.getState().clearVault()
+            useVaultStore.getState().setError(null)
+          }}
+          className="px-4 py-2.5 bg-[var(--accent)] hover:opacity-90 text-white rounded-lg text-sm transition-opacity cursor-pointer"
         >
           Reconfigurar vault
         </button>

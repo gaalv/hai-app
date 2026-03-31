@@ -7,31 +7,22 @@ interface Props {
 export function SyncStatusBadge({ onClick }: Props): JSX.Element {
   const { status, pendingChanges } = useSyncStore()
 
-  const config: Record<string, { label: string; color: string; bg: string }> = {
-    synced:         { label: '✓ Sincronizado', color: '#4ade80', bg: '#0a1a0a' },
-    pending:        { label: `↑ ${pendingChanges} pendente${pendingChanges !== 1 ? 's' : ''}`, color: '#facc15', bg: '#1a1500' },
-    syncing:        { label: '⟳ Sincronizando', color: '#60a5fa', bg: '#0a0f1a' },
-    error:          { label: '✕ Erro', color: '#f87171', bg: '#1a0a0a' },
-    'not-configured': { label: '○ Sem sync', color: '#555', bg: 'transparent' }
+  const config: Record<string, { label: string; cls: string }> = {
+    synced:           { label: '✓ Sincronizado',  cls: 'text-green-400 bg-green-400/10' },
+    pending:          { label: `↑ ${pendingChanges} pendente${pendingChanges !== 1 ? 's' : ''}`, cls: 'text-yellow-400 bg-yellow-400/10' },
+    syncing:          { label: '⟳ Sincronizando', cls: 'text-blue-400 bg-blue-400/10' },
+    error:            { label: '✕ Erro',           cls: 'text-red-400 bg-red-400/10' },
+    'not-configured': { label: '○ Sync',           cls: 'text-[var(--text-3)] bg-transparent' }
   }
 
-  const { label, color, bg } = config[status] ?? config['not-configured']
+  const { label, cls } = config[status] ?? config['not-configured']
 
   return (
-    <button onClick={onClick} style={{ ...styles.badge, color, background: bg }}>
+    <button
+      onClick={onClick}
+      className={`px-2 py-0.5 rounded text-[11px] cursor-pointer whitespace-nowrap transition-opacity hover:opacity-80 ${cls}`}
+    >
       {label}
     </button>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  badge: {
-    border: 'none',
-    borderRadius: 4,
-    padding: '3px 10px',
-    fontSize: 11,
-    fontFamily: 'monospace',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap'
-  }
 }

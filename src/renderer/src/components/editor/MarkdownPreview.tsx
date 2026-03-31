@@ -7,21 +7,10 @@ interface Props {
 
 export function MarkdownPreview({ content }: Props): JSX.Element {
   return (
-    <div style={styles.container}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    <div className="px-8 py-6 h-full overflow-auto bg-[var(--bg)]">
+      <div className="max-w-[680px] mx-auto prose text-[var(--text)] text-[15px] leading-7">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      </div>
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    padding: '16px 24px',
-    height: '100%',
-    overflow: 'auto',
-    color: '#e5e5e5',
-    fontFamily: 'Georgia, serif',
-    fontSize: 15,
-    lineHeight: 1.7,
-    background: '#0f0f0f'
-  }
 }

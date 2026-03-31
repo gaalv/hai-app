@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useFileTreeStore } from '../../stores/fileTree.store'
 import { useEditorStore } from '../../stores/editor.store'
 import { useVaultStore } from '../../stores/vault.store'
+import { useUIStore } from '../../stores/ui.store'
 import type { FileNode } from '../../types/notes'
 
 interface NodeProps {
@@ -32,14 +33,14 @@ function TreeNode({ node, activePath, vaultPath }: NodeProps): JSX.Element {
     return (
       <div>
         <div
-          style={{ ...styles.item, ...styles.dirItem }}
+          className="flex items-center gap-1.5 px-3 py-1 cursor-pointer text-xs text-[var(--text-3)] hover:text-[var(--text-2)] transition-colors select-none"
           onClick={() => setExpanded((e) => !e)}
         >
-          <span style={styles.icon}>{expanded ? '▾' : '▸'}</span>
-          <span>{node.name}</span>
+          <span className="text-[9px]">{expanded ? '▾' : '▸'}</span>
+          <span className="uppercase tracking-wider font-medium">{node.name}</span>
         </div>
         {expanded && node.children?.map((child) => (
-          <div key={child.path} style={{ paddingLeft: 12 }}>
+          <div key={child.path} className="pl-3">
             <TreeNode node={child} activePath={activePath} vaultPath={vaultPath} />
           </div>
         ))}
@@ -50,19 +51,31 @@ function TreeNode({ node, activePath, vaultPath }: NodeProps): JSX.Element {
   const isActive = node.path === activePath
 
   return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+    <div className="relative flex items-center group">
       <div
-        style={{ ...styles.item, ...(isActive ? styles.activeItem : {}), flex: 1, overflow: 'hidden' }}
+        className={`flex items-center px-3 py-1.5 cursor-pointer text-[13px] flex-1 overflow-hidden rounded-sm mx-1 transition-colors ${
+          isActive
+            ? 'bg-[var(--accent-dim)] text-[var(--accent)]'
+            : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
+        }`}
         onClick={() => openNote(node.path)}
         title={node.name}
       >
-        <span style={{ ...styles.label, color: isActive ? '#c084fc' : '#d4d4d4' }}>
+        <span className="overflow-hidden text-ellipsis whitespace-nowrap">
           {node.name.replace('.md', '')}
         </span>
       </div>
-      <div style={styles.actions}>
-        <button style={styles.actionBtn} onClick={handleRename} title="Renomear">✎</button>
-        <button style={styles.actionBtn} onClick={handleDelete} title="Deletar">✕</button>
+      <div className="absolute right-2 flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+        <button
+          className="bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-3)] hover:text-[var(--text-2)] cursor-pointer text-[10px] px-1 py-0.5 rounded transition-colors"
+          onClick={handleRename}
+          title="Renomear"
+        >✎</button>
+        <button
+          className="bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-3)] hover:text-red-400 cursor-pointer text-[10px] px-1 py-0.5 rounded transition-colors"
+          onClick={handleDelete}
+          title="Deletar"
+        >✕</button>
       </div>
     </div>
   )
@@ -73,6 +86,7 @@ export function FileTree(): JSX.Element {
   const activePath = useEditorStore((s) => s.activeNote?.path ?? null)
   const vaultConfig = useVaultStore((s) => s.config)
   const vaultPath = vaultConfig?.path ?? ''
+  const sidebarWidth = useUIStore((s) => s.sidebarWidth)
 
   async function handleNewNote(): Promise<void> {
     const path = await window.electronAPI.notes.create(vaultPath)
@@ -80,16 +94,31 @@ export function FileTree(): JSX.Element {
   }
 
   return (
-    <div style={styles.sidebar}>
-      <div style={styles.header}>
-        <span style={styles.vaultName}>{vaultConfig?.name ?? 'Vault'}</span>
-        <button style={styles.newBtn} onClick={handleNewNote} title="Nova nota">+</button>
+    <div
+      className="bg-[var(--surface)] border-r border-[var(--border)] flex flex-col h-full select-none"
+      style={{ width: sidebarWidth }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)] shrink-0">
+        <span className="text-[11px] font-semibold text-[var(--text-3)] uppercase tracking-widest overflow-hidden text-ellipsis whitespace-nowrap">
+          {vaultConfig?.name ?? 'Vault'}
+        </span>
+        <button
+          className="text-[var(--text-3)] hover:text-[var(--text-2)] cursor-pointer text-lg leading-none w-6 h-6 flex items-center justify-center transition-colors"
+          onClick={handleNewNote}
+          title="Nova nota (⌘N)"
+        >+</button>
       </div>
-      <div style={styles.list}>
+
+      {/* File list */}
+      <div className="flex-1 overflow-auto py-1">
         {isLoading ? (
-          <p style={styles.hint}>Carregando...</p>
+          <p className="px-3 py-2 text-[var(--text-4)] text-xs">Carregando...</p>
         ) : nodes.length === 0 ? (
-          <p style={styles.hint}>Nenhuma nota ainda</p>
+          <div className="px-3 py-4 text-center">
+            <p className="text-[var(--text-4)] text-xs mb-1">Vault vazio</p>
+            <p className="text-[var(--text-4)] text-xs opacity-60">⌘N para criar nota</p>
+          </div>
         ) : (
           nodes.map((node) => (
             <TreeNode key={node.path} node={node} activePath={activePath} vaultPath={vaultPath} />
@@ -98,20 +127,4 @@ export function FileTree(): JSX.Element {
       </div>
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  sidebar: { width: 220, minWidth: 180, background: '#111', borderRight: '1px solid #222', display: 'flex', flexDirection: 'column', height: '100vh', userSelect: 'none' },
-  header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid #222' },
-  vaultName: { fontSize: 12, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  newBtn: { background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' },
-  list: { flex: 1, overflow: 'auto', padding: '4px 0' },
-  item: { display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', cursor: 'pointer', fontSize: 13, fontFamily: 'monospace' },
-  activeItem: { background: '#1e1e2e' },
-  dirItem: { color: '#888' },
-  icon: { fontSize: 10, color: '#555' },
-  label: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  hint: { padding: '8px 12px', color: '#444', fontSize: 12 },
-  actions: { display: 'flex', gap: 2, paddingRight: 6, opacity: 0, transition: 'opacity 0.15s' },
-  actionBtn: { background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 11, padding: '2px 4px', fontFamily: 'monospace' }
 }

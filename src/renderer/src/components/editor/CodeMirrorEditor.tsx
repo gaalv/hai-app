@@ -5,13 +5,32 @@ import { defaultKeymap, historyKeymap, history } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
 import { oneDark } from '@codemirror/theme-one-dark'
+import { vim } from '@replit/codemirror-vim'
+import { markdownInlineDecorations, markdownInlineTheme } from '../../editor/markdownDecorations'
 
 interface Props {
   initialContent: string
   onChange: (content: string) => void
+  focusMode?: boolean
+  vimMode?: boolean
 }
 
-export function CodeMirrorEditor({ initialContent, onChange }: Props): JSX.Element {
+const baseTheme = EditorView.theme({
+  '&': { height: '100%', fontSize: '14px', background: 'transparent !important' },
+  '.cm-scroller': { padding: '16px 20px', lineHeight: '1.7', overflow: 'auto' },
+  '.cm-content': { caretColor: 'oklch(0.59 0.24 292)', fontFamily: 'var(--font-mono)' },
+  '.cm-focused': { outline: 'none !important' },
+  '.cm-line': { padding: '0' },
+  '.cm-gutters': { display: 'none' },
+  '.cm-cursor': { borderLeftColor: 'var(--accent) !important', borderLeftWidth: '2px' }
+})
+
+const focusModeTheme = EditorView.theme({
+  '.cm-scroller': { padding: '48px 24px' },
+  '.cm-line': { lineHeight: '1.9' }
+})
+
+export function CodeMirrorEditor({ initialContent, onChange, focusMode, vimMode }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
@@ -29,26 +48,31 @@ export function CodeMirrorEditor({ initialContent, onChange }: Props): JSX.Eleme
     const state = EditorState.create({
       doc: initialContent,
       extensions: [
+        ...(vimMode ? [vim()] : []),
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         markdown({ base: markdownLanguage }),
         syntaxHighlighting(defaultHighlightStyle),
         EditorView.lineWrapping,
         oneDark,
+        baseTheme,
+        markdownInlineDecorations,
+        markdownInlineTheme,
+        ...(focusMode ? [focusModeTheme] : []),
         updateListener
       ]
     })
 
     const view = new EditorView({ state, parent: containerRef.current })
     viewRef.current = view
+    view.focus()
 
     return () => {
       view.destroy()
       viewRef.current = null
     }
-  }, []) // só monta uma vez
+  }, [focusMode, vimMode]) // re-mount when mode changes
 
-  // Quando troca de nota: atualiza conteúdo sem re-montar o editor
   useEffect(() => {
     const view = viewRef.current
     if (!view) return
@@ -59,5 +83,5 @@ export function CodeMirrorEditor({ initialContent, onChange }: Props): JSX.Eleme
     })
   }, [initialContent])
 
-  return <div ref={containerRef} style={{ height: '100%', overflow: 'auto' }} />
+  return <div ref={containerRef} className="h-full overflow-auto" />
 }

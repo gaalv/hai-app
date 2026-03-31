@@ -25,57 +25,56 @@ export function SyncConfigModal({ onClose }: Props): JSX.Element {
     }
   }
 
-  return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <h2 style={styles.title}>Configurar GitHub Sync</h2>
+  const inputCls = "w-full px-3 py-2.5 bg-[var(--surface-3)] text-[var(--text)] border border-[var(--border-2)] focus:border-[var(--accent)] rounded-md text-sm outline-none mb-2 transition-colors"
 
-        <label style={styles.label}>Personal Access Token</label>
+  return (
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[100]">
+      <div className="bg-[var(--surface)] border border-[var(--border-2)] rounded-xl p-8 w-[440px]">
+        <h2 className="text-base font-semibold text-[var(--text)] mb-5">Configurar GitHub Sync</h2>
+
+        <label className="block text-xs text-[var(--text-3)] mb-1.5">Personal Access Token</label>
         <input
           type="password"
-          style={styles.input}
+          className={inputCls}
           placeholder="ghp_..."
           value={pat}
           onChange={(e) => setPat(e.target.value)}
         />
-        <p style={styles.hint}>
-          Crie em: GitHub → Settings → Developer settings → Personal access tokens<br />
-          Permissões necessárias: <code>repo</code>
+        <p className="text-[11px] text-[var(--text-3)] mb-4 leading-relaxed">
+          GitHub → Settings → Developer settings → Personal access tokens<br />
+          Permissão necessária: <code className="bg-[var(--surface-3)] px-1 rounded">repo</code>
         </p>
 
-        <label style={styles.label}>URL do Repositório</label>
+        <label className="block text-xs text-[var(--text-3)] mb-1.5">URL do Repositório</label>
         <input
-          style={styles.input}
+          className={inputCls}
           placeholder="https://github.com/usuario/notas"
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
         />
 
-        {error && <p style={styles.error}>{error}</p>}
+        {error && (
+          <p className="text-red-400 text-xs bg-red-400/10 px-3 py-2 rounded my-2">{error}</p>
+        )}
 
-        <div style={styles.buttons}>
-          <button style={styles.primaryBtn} onClick={handleConnect} disabled={isLoading || !pat || !repoUrl}>
+        <div className="flex gap-2 mt-5">
+          <button
+            className="flex-1 py-2.5 bg-[var(--accent)] text-white border-none rounded-lg cursor-pointer text-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
+            onClick={handleConnect}
+            disabled={isLoading || !pat || !repoUrl}
+          >
             {isLoading ? 'Conectando...' : 'Conectar'}
           </button>
-          <button style={styles.secondaryBtn} onClick={onClose} disabled={isLoading}>
+          <button
+            className="px-4 py-2.5 bg-transparent text-[var(--text-2)] border border-[var(--border-2)] rounded-lg cursor-pointer text-sm disabled:opacity-50 hover:border-[var(--text-3)] transition-colors"
+            onClick={onClose}
+            disabled={isLoading}
+          >
             Cancelar
           </button>
         </div>
       </div>
     </div>
   )
-}
-
-const styles: Record<string, React.CSSProperties> = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
-  modal: { background: '#141414', border: '1px solid #2a2a2a', borderRadius: 8, padding: 32, width: 440, fontFamily: 'monospace' },
-  title: { margin: '0 0 20px', fontSize: 18, color: '#e5e5e5' },
-  label: { display: 'block', fontSize: 12, color: '#888', marginBottom: 6 },
-  input: { width: '100%', padding: '9px 12px', background: '#1a1a1a', color: '#e5e5e5', border: '1px solid #333', borderRadius: 6, fontSize: 13, fontFamily: 'monospace', boxSizing: 'border-box', marginBottom: 8, outline: 'none' },
-  hint: { fontSize: 11, color: '#555', margin: '0 0 16px', lineHeight: 1.5 },
-  error: { color: '#f87171', fontSize: 12, background: '#1a0a0a', padding: 8, borderRadius: 4, margin: '8px 0' },
-  buttons: { display: 'flex', gap: 8, marginTop: 20 },
-  primaryBtn: { flex: 1, padding: '10px 0', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'monospace', fontSize: 13 },
-  secondaryBtn: { padding: '10px 16px', background: 'transparent', color: '#888', border: '1px solid #2a2a2a', borderRadius: 6, cursor: 'pointer', fontFamily: 'monospace', fontSize: 13 }
 }
