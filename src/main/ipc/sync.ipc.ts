@@ -38,8 +38,8 @@ async function ensureGitRepo(vaultPath: string, repoUrl: string): Promise<void> 
     await git.commit({
       fs,
       dir: vaultPath,
-      message: 'chore: initial commit from Muta Notes',
-      author: { name: 'Muta Notes', email: 'muta@local' }
+      message: 'chore: initial commit from Hai',
+      author: { name: 'Hai', email: 'muta@local' }
     })
   }
 }
@@ -84,7 +84,7 @@ export function registerSyncHandlers(): void {
       fs,
       dir: vaultConfig.path,
       message: `sync: ${new Date().toISOString()}`,
-      author: { name: 'Muta Notes', email: 'muta@local' }
+      author: { name: 'Hai', email: 'muta@local' }
     })
 
     await git.push({
@@ -122,7 +122,7 @@ export function registerSyncHandlers(): void {
         dir: vaultConfig.path,
         ours: 'HEAD',
         theirs: 'FETCH_HEAD',
-        author: { name: 'Muta Notes', email: 'muta@local' }
+        author: { name: 'Hai', email: 'muta@local' }
       })
     } catch (err) {
       // Conflito de merge — detectar arquivos conflitantes

@@ -26,7 +26,7 @@ export function MainLayout(): JSX.Element {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#0a0a0a' }}>
       {/* Header */}
       <div style={styles.header}>
-        <span style={styles.appName}>muta notes</span>
+        <span style={styles.appName}>hai</span>
         <div style={{ position: 'relative' }}>
           <SyncStatusBadge onClick={() => setSyncPanelOpen((o) => !o)} />
           {syncPanelOpen && <SyncPanel onClose={() => setSyncPanelOpen(false)} />}

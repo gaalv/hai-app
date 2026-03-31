@@ -34,7 +34,7 @@ export function OnboardingScreen(): JSX.Element {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Muta Notes</h1>
+        <h1 style={styles.title}>Hai</h1>
         <p style={styles.subtitle}>Selecione uma pasta para usar como vault de notas.</p>
 
         {error && <p style={styles.error}>{error}</p>}

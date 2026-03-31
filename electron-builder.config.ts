@@ -1,8 +1,8 @@
 import type { Configuration } from 'electron-builder'
 
 const config: Configuration = {
-  appId: 'com.gaalv.muta-notes',
-  productName: 'Muta Notes',
+  appId: 'com.gaalv.hai',
+  productName: 'Hai',
   copyright: 'Copyright © 2025 gaalv',
   directories: {
     buildResources: 'resources',

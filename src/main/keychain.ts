@@ -1,6 +1,6 @@
 import keytar from 'keytar'
 
-const SERVICE = 'muta-notes'
+const SERVICE = 'hai'
 
 export async function setPassword(key: string, value: string): Promise<void> {
   await keytar.setPassword(SERVICE, key, value)

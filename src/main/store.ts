@@ -8,7 +8,7 @@ interface StoreSchema {
 }
 
 const store = new Store<StoreSchema>({
-  name: 'muta-notes-config',
+  name: 'hai-config',
   defaults: {
     vaultConfig: null,
     syncConfig: null
