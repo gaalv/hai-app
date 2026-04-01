@@ -28,14 +28,16 @@ function NoteItem({ node, activePath, onContextMenu }: {
 
   return (
     <div
-      className={`group flex items-center px-2 py-1.5 mx-1 rounded-md cursor-pointer text-[13px] transition-colors ${
-        isActive ? 'bg-[var(--accent-dim)] text-[var(--accent)]' : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
+      className={`group flex items-center px-2 py-1 mx-1 rounded cursor-pointer transition-colors ${
+        isActive
+          ? 'bg-[var(--accent-dim)] text-[var(--accent)]'
+          : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
       }`}
       onClick={() => openNote(node.path)}
       onContextMenu={(e) => onContextMenu(e, node)}
       title={node.name}
     >
-      <span className="truncate">{node.name.replace('.md', '')}</span>
+      <span className="font-sans text-[12px] truncate">{node.name.replace('.md', '')}</span>
     </div>
   )
 }
@@ -44,8 +46,8 @@ function NoteItem({ node, activePath, onContextMenu }: {
 
 function SectionHeader({ label, action }: { label: string; action?: { icon: string; onClick: () => void; title: string } }): JSX.Element {
   return (
-    <div className="flex items-center justify-between px-3 py-1 mt-2">
-      <span className="text-[10px] font-semibold text-[var(--text-4)] uppercase tracking-widest">{label}</span>
+    <div className="flex items-center justify-between px-3 pt-3 pb-0.5">
+      <span className="font-sans text-[10px] font-medium text-[var(--text-4)] uppercase tracking-widest">{label}</span>
       {action && (
         <button
           className="text-[var(--text-4)] hover:text-[var(--text-2)] text-xs cursor-pointer transition-colors w-4 h-4 flex items-center justify-center"
@@ -66,15 +68,17 @@ function NavItem({ icon, label, active, count, onClick }: {
 }): JSX.Element {
   return (
     <div
-      className={`flex items-center gap-2 px-3 py-1.5 mx-1 rounded-md cursor-pointer text-sm transition-colors ${
-        active ? 'bg-[var(--accent-dim)] text-[var(--accent)]' : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
+      className={`flex items-center gap-2 px-3 py-1 mx-1 rounded cursor-pointer transition-colors ${
+        active
+          ? 'bg-[var(--accent-dim)] text-[var(--accent)]'
+          : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
       }`}
       onClick={onClick}
     >
-      <span className="text-xs w-4 text-center">{icon}</span>
-      <span className="flex-1 truncate">{label}</span>
+      <span className="font-sans text-[11px] w-4 text-center shrink-0 opacity-70">{icon}</span>
+      <span className="font-sans text-[12px] flex-1 truncate">{label}</span>
       {count !== undefined && count > 0 && (
-        <span className="text-[10px] bg-[var(--surface-3)] text-[var(--text-3)] px-1.5 py-0.5 rounded-full">{count}</span>
+        <span className="font-sans text-[10px] text-[var(--text-4)] tabular-nums">{count}</span>
       )}
     </div>
   )
@@ -175,12 +179,12 @@ export function Sidebar(): JSX.Element {
       style={{ width: sidebarWidth }}
     >
       {/* Vault name + new note */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border)] shrink-0">
-        <span className="text-[11px] font-semibold text-[var(--text-3)] uppercase tracking-widest truncate">
+      <div className="flex items-center justify-between px-3 py-2 shrink-0">
+        <span className="font-sans text-[11px] font-medium text-[var(--text-3)] uppercase tracking-[0.12em] truncate">
           {vaultConfig?.name ?? 'Vault'}
         </span>
         <button
-          className="text-[var(--text-3)] hover:text-[var(--text-2)] cursor-pointer text-base w-6 h-6 flex items-center justify-center transition-colors"
+          className="font-sans text-[var(--text-4)] hover:text-[var(--text-2)] cursor-pointer text-sm w-5 h-5 flex items-center justify-center transition-colors rounded hover:bg-[var(--surface-3)]"
           onClick={() => handleNewNote()}
           title="Nova nota (⌘N)"
         >+</button>
@@ -202,9 +206,9 @@ export function Sidebar(): JSX.Element {
         />
 
         {creatingNb && (
-          <div className="px-2 mb-1">
+          <div className="px-2 mb-1 mt-0.5">
             <input
-              className="w-full px-2 py-1 bg-[var(--surface-3)] text-[var(--text)] text-xs border border-[var(--accent)] rounded outline-none"
+              className="w-full px-2 py-0.5 bg-[var(--surface-3)] text-[var(--text)] font-sans text-[12px] border border-[var(--accent)] rounded outline-none placeholder:text-[var(--text-4)]"
               placeholder="Nome do notebook"
               value={newNbName}
               autoFocus
@@ -221,25 +225,25 @@ export function Sidebar(): JSX.Element {
         {manifest.notebooks.map((nb) => (
           <div key={nb.id}>
             <div
-              className={`flex items-center gap-2 px-3 py-1.5 mx-1 rounded-md cursor-pointer text-sm transition-colors group ${
+              className={`flex items-center gap-1.5 px-3 py-1 mx-1 rounded cursor-pointer transition-colors group ${
                 view === 'notebook' && activeNotebook === nb.id
                   ? 'bg-[var(--accent-dim)] text-[var(--accent)]'
                   : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
               }`}
               onClick={() => { setView('notebook', nb.id); toggleNotebook(nb.id) }}
             >
-              <span className="text-[9px] text-[var(--text-4)]">{expandedNbs.has(nb.id) ? '▾' : '▸'}</span>
-              <span className="text-xs w-4 text-center">{nb.icon ?? '📓'}</span>
-              <span className="flex-1 truncate text-[13px]">{nb.name}</span>
+              <span className="font-sans text-[9px] text-[var(--text-4)] w-3 shrink-0">{expandedNbs.has(nb.id) ? '▾' : '▸'}</span>
+              <span className="font-sans text-[11px] w-4 text-center shrink-0 opacity-70">{nb.icon ?? '📓'}</span>
+              <span className="font-sans text-[12px] flex-1 truncate">{nb.name}</span>
               <button
-                className="opacity-0 group-hover:opacity-100 text-[var(--text-3)] hover:text-[var(--text-2)] text-xs cursor-pointer transition-all"
+                className="opacity-0 group-hover:opacity-100 text-[var(--text-4)] hover:text-[var(--text-2)] font-sans text-xs cursor-pointer transition-all"
                 onClick={(e) => { e.stopPropagation(); handleNewNote(nb.path) }}
                 title="Nova nota neste notebook"
               >+</button>
             </div>
 
             {expandedNbs.has(nb.id) && view === 'notebook' && activeNotebook === nb.id && (
-              <div className="pl-5">
+              <div className="pl-4">
                 {viewNotes.map((n) => (
                   <NoteItem
                     key={n.path}
@@ -250,7 +254,7 @@ export function Sidebar(): JSX.Element {
                   />
                 ))}
                 {viewNotes.length === 0 && (
-                  <p className="px-3 py-2 text-xs text-[var(--text-4)]">Notebook vazio</p>
+                  <p className="px-3 py-1.5 font-sans text-[11px] text-[var(--text-4)]">Notebook vazio</p>
                 )}
               </div>
             )}
@@ -264,15 +268,15 @@ export function Sidebar(): JSX.Element {
             {manifest.tags.map((tag) => (
               <div
                 key={tag.name}
-                className={`flex items-center gap-2 px-3 py-1.5 mx-1 rounded-md cursor-pointer text-sm transition-colors ${
+                className={`flex items-center gap-2 px-3 py-1 mx-1 rounded cursor-pointer transition-colors ${
                   view === 'tag' && activeTag === tag.name
                     ? 'bg-[var(--accent-dim)] text-[var(--accent)]'
                     : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
                 }`}
                 onClick={() => setView('tag', tag.name)}
               >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
-                <span className="text-[13px] truncate">{tag.label}</span>
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                <span className="font-sans text-[12px] truncate">{tag.label}</span>
               </div>
             ))}
           </>
@@ -283,7 +287,7 @@ export function Sidebar(): JSX.Element {
           <>
             <SectionHeader label={view === 'all' ? 'Notas' : view === 'inbox' ? 'Inbox' : view === 'pinned' ? 'Fixadas' : 'Resultados'} />
             {viewNotes.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-[var(--text-4)]">Nenhuma nota</p>
+              <p className="px-3 py-1.5 font-sans text-[11px] text-[var(--text-4)]">Nenhuma nota</p>
             ) : (
               viewNotes.map((n) => (
                 <NoteItem
@@ -302,7 +306,7 @@ export function Sidebar(): JSX.Element {
       {/* Context menu */}
       {contextMenu && contextMenu.target.type === 'note' && (
         <div
-          className="fixed bg-[var(--surface-2)] border border-[var(--border-2)] rounded-lg py-1 z-[500] shadow-xl min-w-[160px]"
+          className="fixed bg-[var(--surface-2)] border border-[var(--border-2)] rounded-md py-0.5 z-[500] shadow-lg shadow-black/40 min-w-[152px]"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -313,13 +317,13 @@ export function Sidebar(): JSX.Element {
             return (
               <>
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-[var(--text-2)] hover:bg-[var(--surface-3)] cursor-pointer"
+                  className="w-full text-left px-3 py-1.5 font-sans text-[12px] text-[var(--text-2)] hover:bg-[var(--surface-3)] cursor-pointer transition-colors"
                   onClick={() => { isPinned ? unpinNote(rel) : pinNote(rel); setContextMenu(null) }}
                 >
                   {isPinned ? '📌 Desafixar' : '📌 Fixar nota'}
                 </button>
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-[var(--text-2)] hover:bg-[var(--surface-3)] cursor-pointer"
+                  className="w-full text-left px-3 py-1.5 font-sans text-[12px] text-[var(--text-2)] hover:bg-[var(--surface-3)] cursor-pointer transition-colors"
                   onClick={async () => {
                     const newName = prompt('Novo nome:', node.name.replace('.md', ''))
                     if (!newName) { setContextMenu(null); return }
@@ -330,9 +334,9 @@ export function Sidebar(): JSX.Element {
                 >
                   ✎ Renomear
                 </button>
-                <div className="border-t border-[var(--border)] my-1" />
+                <div className="border-t border-[var(--border)] my-0.5" />
                 <button
-                  className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-400/10 cursor-pointer"
+                  className="w-full text-left px-3 py-1.5 font-sans text-[12px] text-red-400/80 hover:text-red-400 hover:bg-red-400/10 cursor-pointer transition-colors"
                   onClick={async () => {
                     if (!confirm(`Mover "${node.name}" para a lixeira?`)) { setContextMenu(null); return }
                     await window.electronAPI.manifest.trashNote(node.path)

@@ -19,6 +19,7 @@ import { useSyncMode } from '../../hooks/useSyncMode'
 
 export function MainLayout(): JSX.Element {
   const vaultPath = useVaultStore((s) => s.config?.path ?? '')
+  const vaultName = useVaultStore((s) => s.config?.name ?? 'hai')
   const init = useFileTreeStore((s) => s.init)
   const refresh = useFileTreeStore((s) => s.refresh)
   const conflicts = useSyncStore((s) => s.conflicts)
@@ -93,41 +94,18 @@ export function MainLayout(): JSX.Element {
     <div className="flex flex-col h-screen overflow-hidden bg-[var(--bg)]">
       {/* Topbar */}
       {!focusMode && (
-        <div className="titlebar-drag flex items-center justify-between h-[38px] bg-[var(--surface)] border-b border-[var(--border)] shrink-0">
+        <div className="titlebar-drag flex items-center justify-between h-[36px] bg-[var(--surface)] border-b border-[var(--border)] shrink-0">
           {/* Left: traffic lights space + vault name */}
-          <div className="titlebar-no-drag pl-[80px] flex items-center gap-3">
-            <span className="text-xs text-[var(--text-4)] tracking-[3px] lowercase select-none">hai</span>
+          <div className="titlebar-no-drag pl-[76px] flex items-center">
+            <span
+              className="font-sans text-[10px] tracking-[0.18em] uppercase text-[var(--text-4)] select-none"
+            >
+              {vaultName}
+            </span>
           </div>
 
           {/* Right: controls */}
-          <div className="titlebar-no-drag flex items-center gap-1 pr-3">
-            {/* Settings */}
-            <button
-              className="text-[var(--text-4)] hover:text-[var(--text-2)] text-xs px-1.5 py-0.5 transition-colors cursor-pointer"
-              onClick={() => setSettingsOpen(true)}
-              title="Configurações (⌘,)"
-            >⚙</button>
-
-            {/* Profile avatar */}
-            {profile && (
-              <img
-                src={profile.avatar_url}
-                alt={profile.login}
-                className="w-5 h-5 rounded-full cursor-pointer opacity-70 hover:opacity-100 transition-opacity"
-                onClick={() => setSettingsOpen(true)}
-                title={profile.name ?? profile.login}
-              />
-            )}
-
-            {/* Sidebar toggle */}
-            <button
-              className="text-[var(--text-4)] hover:text-[var(--text-2)] text-xs px-1.5 py-0.5 transition-colors cursor-pointer"
-              onClick={toggleSidebar}
-              title="Toggle sidebar (⌘\\)"
-            >
-              {sidebarOpen ? '⇥' : '⇤'}
-            </button>
-
+          <div className="titlebar-no-drag flex items-center gap-0.5 pr-2">
             {/* Sync badge — only in sync mode */}
             {isSync && (
               <div className="relative">
@@ -135,6 +113,33 @@ export function MainLayout(): JSX.Element {
                 {syncPanelOpen && <SyncPanel onClose={() => setSyncPanelOpen(false)} />}
               </div>
             )}
+
+            {/* Profile avatar */}
+            {profile && (
+              <img
+                src={profile.avatar_url}
+                alt={profile.login}
+                className="w-[18px] h-[18px] rounded-full cursor-pointer opacity-40 hover:opacity-70 transition-opacity ml-1"
+                onClick={() => setSettingsOpen(true)}
+                title={profile.name ?? profile.login}
+              />
+            )}
+
+            {/* Settings */}
+            <button
+              className="font-sans text-[11px] text-[var(--text-4)] hover:text-[var(--text-2)] w-6 h-6 flex items-center justify-center transition-colors cursor-pointer rounded"
+              onClick={() => setSettingsOpen(true)}
+              title="Configurações (⌘,)"
+            >⚙</button>
+
+            {/* Sidebar toggle */}
+            <button
+              className="font-sans text-[11px] text-[var(--text-4)] hover:text-[var(--text-2)] w-6 h-6 flex items-center justify-center transition-colors cursor-pointer rounded"
+              onClick={toggleSidebar}
+              title="Toggle sidebar (⌘\\)"
+            >
+              {sidebarOpen ? '⇥' : '⇤'}
+            </button>
           </div>
         </div>
       )}
