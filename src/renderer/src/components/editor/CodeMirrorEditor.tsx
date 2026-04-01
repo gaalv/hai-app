@@ -89,6 +89,8 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, Props>(
       const view = new EditorView({ state, parent: containerRef.current })
       viewRef.current = view
       setActiveEditorView(view)
+      // Place cursor at end of document so user can continue writing
+      view.dispatch({ selection: { anchor: view.state.doc.length } })
       view.focus()
 
       return () => {

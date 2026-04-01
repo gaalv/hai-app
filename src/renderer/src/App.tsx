@@ -43,11 +43,11 @@ function App(): JSX.Element {
         setScreen('app')
 
         // Background sync: pull latest then push local changes
+        // Use .catch on pull so push still runs even if pull fails (e.g. no remote branch yet)
         window.electronAPI.sync.pull()
+          .catch(() => { /* ignore pull errors */ })
           .then(() => window.electronAPI.sync.push())
-          .catch(() => {
-            // Silently ignore sync errors on startup
-          })
+          .catch(() => { /* ignore push errors on startup */ })
       } catch {
         setScreen('login')
       }

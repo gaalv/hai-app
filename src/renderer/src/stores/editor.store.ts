@@ -1,5 +1,14 @@
 import { create } from 'zustand'
 
+// Debounced push: waits 10s after the last save before pushing to GitHub
+let pushTimer: ReturnType<typeof setTimeout> | null = null
+function schedulePushAfterSave(): void {
+  if (pushTimer) clearTimeout(pushTimer)
+  pushTimer = setTimeout(() => {
+    window.electronAPI.sync.push().catch(() => {})
+  }, 10_000)
+}
+
 type PreviewMode = 'none' | 'split' | 'preview'
 
 interface ActiveNote {
@@ -51,6 +60,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     try {
       await window.electronAPI.notes.save(activeNote.path, activeNote.content)
       set({ isDirty: false })
+      // Debounced push after save — avoids flooding on rapid edits
+      schedulePushAfterSave()
     } catch (err) {
       set({ saveError: err instanceof Error ? err.message : 'Erro ao salvar' })
     } finally {
