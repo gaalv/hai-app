@@ -67,6 +67,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, Props>(
     const viewRef = useRef<EditorView | null>(null)
     const onChangeRef = useRef(onChange)
     onChangeRef.current = onChange
+    const isLocalChange = useRef(false)
 
     useImperativeHandle(ref, () => ({
       get view() {
@@ -80,6 +81,7 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, Props>(
       const state = EditorState.create({
         doc: initialContent,
         extensions: buildExtensions(!!vimMode, !!focusMode, () => {
+          isLocalChange.current = true
           onChangeRef.current(viewRef.current?.state.doc.toString() ?? '')
         })
       })
@@ -101,6 +103,10 @@ export const CodeMirrorEditor = forwardRef<CodeMirrorEditorHandle, Props>(
     useEffect(() => {
       const view = viewRef.current
       if (!view) return
+      if (isLocalChange.current) {
+        isLocalChange.current = false
+        return
+      }
       const current = view.state.doc.toString()
       if (current === initialContent) return
       view.dispatch({

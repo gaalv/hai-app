@@ -10,7 +10,7 @@ function splitFrontmatter(raw: string): { frontmatter: string; body: string } {
   if (end === -1) return { frontmatter: '', body: raw }
   return {
     frontmatter: raw.slice(4, end),
-    body: raw.slice(end + 4).replace(/^\n/, '')
+    body: raw.slice(end + 4).replace(/^\n+/, '')
   }
 }
 
