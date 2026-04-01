@@ -5,9 +5,10 @@ interface RailProps {
   activeTab: string
   onTabChange: (tab: string) => void
   onAvatarClick: () => void
+  onSettingsClick: () => void
 }
 
-export function Rail({ activeTab, onTabChange, onAvatarClick }: RailProps): JSX.Element {
+export function Rail({ activeTab, onTabChange, onAvatarClick, onSettingsClick }: RailProps): JSX.Element {
   const { profile } = useAuthStore()
   const avatarInitial = (profile?.name || profile?.login || 'U')[0].toUpperCase()
   return (
@@ -75,7 +76,7 @@ export function Rail({ activeTab, onTabChange, onAvatarClick }: RailProps): JSX.
       <div className="flex-1" />
 
       {/* Settings */}
-      <RailBtn title="Configurações">
+      <RailBtn title="Configurações" onClick={onSettingsClick}>
         <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
           <circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4"/>
           <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M2.9 2.9l1.1 1.1M11 11l1.1 1.1M2.9 12.1L4 11M11 4l1.1-1.1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>

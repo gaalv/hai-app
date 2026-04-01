@@ -50,7 +50,7 @@ function estimateReadTime(text: string): number {
 }
 
 export function EditorPanel(): JSX.Element {
-  const { activeNote, isDirty, isSaving, setContent, save } = useEditorStore()
+  const { activeNote, isDirty, setContent, save } = useEditorStore()
   const { updateNoteTitle } = useNotesStore()
   const saveTimer = useRef<NodeJS.Timeout | null>(null)
   const titleRef = useRef<HTMLDivElement>(null)
@@ -120,8 +120,6 @@ export function EditorPanel(): JSX.Element {
   const createdDate = extractDate(frontmatter)
   const readTime = estimateReadTime(body)
 
-  const saveStatus = isSaving ? 'Salvando...' : isDirty ? 'Não salvo' : 'Salvo automaticamente'
-
   return (
     <div
       className="flex flex-col overflow-hidden flex-1 bg-[var(--app-main)]"
@@ -142,29 +140,6 @@ export function EditorPanel(): JSX.Element {
             {extractTitle(frontmatter) || 'Sem título'}
           </span>
         </div>
-
-        <div className="flex-1" />
-
-        {/* Save status */}
-        <div
-          className={`flex items-center gap-[5px] px-[10px] py-1 bg-[rgba(255,255,255,0.04)] border-[0.5px] border-[var(--app-border-mid)] rounded-full text-[11px] text-[var(--app-text-3)]`}
-        >
-          <span className={`w-[5px] h-[5px] rounded-full shrink-0 inline-block ${isSaving ? 'bg-[#F5A623]' : isDirty ? 'bg-[#F87171]' : 'bg-[#3FD68F]'}`} />
-          {saveStatus}
-        </div>
-
-        {/* Save now button */}
-        {isDirty && (
-          <div
-            onClick={() => save()}
-            className="flex items-center justify-center cursor-pointer opacity-50 w-[30px] h-[30px] hover:opacity-90 transition-opacity duration-[120ms]"
-            title="Salvar agora (⌘S)"
-          >
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-              <path d="M2 6.5L5.5 10L11 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-        )}
       </div>
 
       {/* Content area */}

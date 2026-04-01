@@ -1,55 +1,23 @@
-import { useSyncStore } from '../../stores/sync.store'
 import { useEditorStore } from '../../stores/editor.store'
-import { useUIStore } from '../../stores/ui.store'
 
-interface Props {
-  onSyncClick: () => void
-}
+export function StatusBar(): JSX.Element {
+  const isDirty = useEditorStore((s) => s.isDirty)
+  const isSaving = useEditorStore((s) => s.isSaving)
 
-export function Statusbar({ onSyncClick }: Props): JSX.Element {
-  const { status, lastSync, pendingChanges } = useSyncStore()
-  const activeNote = useEditorStore((s) => s.activeNote)
-  const vimMode = useUIStore((s) => s.vimMode)
-
-  const wordCount = activeNote
-    ? activeNote.content.trim().split(/\s+/).filter(Boolean).length
-    : 0
-
-  const charCount = activeNote ? activeNote.content.length : 0
-
-  const syncConfig: Record<string, { icon: string; label: string; cls: string }> = {
-    synced:           { icon: '✓', label: 'synced',   cls: 'text-green-500/70' },
-    pending:          { icon: '●', label: `${pendingChanges}p`,  cls: 'text-yellow-500/70' },
-    syncing:          { icon: '⟳', label: 'syncing',  cls: 'text-blue-400/70 animate-spin' },
-    error:            { icon: '✕', label: 'error',    cls: 'text-red-400/70' },
-    'not-configured': { icon: '○', label: '',         cls: 'text-[var(--text-4)]' }
-  }
-
-  const sync = syncConfig[status] ?? syncConfig['not-configured']
+  const syncLabel = isSaving ? 'Sincronizando...' : isDirty ? 'Não salvo' : 'Sync'
+  const dotColor = isSaving ? 'bg-[#F5A623]' : isDirty ? 'bg-[#F87171]' : 'bg-[#3FD68F]'
 
   return (
-    <div className="flex items-center justify-between px-3 h-[22px] font-sans text-[10px] bg-[var(--bg)] border-t border-[var(--border)] shrink-0 select-none titlebar-no-drag">
-      {/* Left */}
-      <div className="flex items-center gap-2">
-        <button
-          className={`flex items-center gap-1 cursor-pointer hover:opacity-100 opacity-80 transition-opacity ${sync.cls}`}
-          onClick={onSyncClick}
-          title={lastSync ? `Último sync: ${new Date(lastSync).toLocaleString('pt-BR')}` : undefined}
-        >
-          <span>{sync.icon}</span>
-          {sync.label && <span>{sync.label}</span>}
-        </button>
+    <div className="flex items-center shrink-0 h-[22px] px-2 bg-[var(--app-rail)] border-t-[0.5px] border-t-[var(--app-border)] text-[11px] text-[var(--app-text-3)] select-none gap-3">
+      {/* Sync status */}
+      <div className="flex items-center gap-[5px]">
+        <span className={`w-[6px] h-[6px] rounded-full shrink-0 ${dotColor}`} />
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none" className="opacity-60">
+          <path d="M1.5 5.5a4 4 0 017.2-2.4M9.5 5.5a4 4 0 01-7.2 2.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          <path d="M8.5 1.5v2h-2M2.5 9.5v-2h2" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <span>{syncLabel}</span>
       </div>
-
-      {/* Right */}
-      {activeNote && (
-        <div className="flex items-center gap-2.5 text-[var(--text-4)]">
-          {vimMode && <span className="text-[var(--accent)] font-medium tracking-wide">VIM</span>}
-          <span>{wordCount}w</span>
-          <span>{charCount}c</span>
-          <span>md</span>
-        </div>
-      )}
     </div>
   )
 }

@@ -7,7 +7,9 @@ import { EditorPanel } from './EditorPanel'
 import { SearchPanel } from './SearchPanel'
 import { TagsPanel } from './TagsPanel'
 import { NotebooksPanel } from './NotebooksPanel'
+import { StatusBar } from './StatusBar'
 import { CalendarPanel } from '../calendar/CalendarPanel'
+import { SettingsModal } from '../settings/SettingsModal'
 
 type Tab = 'notes' | 'notebooks' | 'search' | 'tags'
 
@@ -20,6 +22,7 @@ interface AppLayoutProps {
 export function AppLayout({ tab, setTab, onAvatarClick }: AppLayoutProps): JSX.Element {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [calendarOpen, setCalendarOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const handleToggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
   const handleToggleCalendar = useCallback(() => setCalendarOpen((v) => !v), [])
@@ -37,7 +40,12 @@ export function AppLayout({ tab, setTab, onAvatarClick }: AppLayoutProps): JSX.E
 
       {/* Main content below titlebar */}
       <div className="flex flex-1 overflow-hidden">
-        <Rail activeTab={tab} onTabChange={(t) => setTab(t as Tab)} onAvatarClick={onAvatarClick} />
+        <Rail
+          activeTab={tab}
+          onTabChange={(t) => setTab(t as Tab)}
+          onAvatarClick={onAvatarClick}
+          onSettingsClick={() => setSettingsOpen(true)}
+        />
 
         {/* Panel host */}
         <div className="flex flex-1 overflow-hidden">
@@ -60,6 +68,12 @@ export function AppLayout({ tab, setTab, onAvatarClick }: AppLayoutProps): JSX.E
           </div>
         )}
       </div>
+
+      {/* Status bar */}
+      <StatusBar />
+
+      {/* Settings modal */}
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }
