@@ -9,6 +9,7 @@ import { registerAuthHandlers } from './ipc/auth.ipc'
 import { registerSearchHandlers } from './ipc/search.ipc'
 import { registerExportHandlers } from './ipc/export.ipc'
 import { registerAppHandlers } from './ipc/app.ipc'
+import { registerRepoHandlers } from './ipc/repo.ipc'
 
 let mainWindow: BrowserWindow | null = null
 let quickCaptureWindow: BrowserWindow | null = null
@@ -110,6 +111,7 @@ app.whenReady().then(() => {
   registerSearchHandlers()
   registerExportHandlers()
   registerAppHandlers()
+  registerRepoHandlers()
 
   createWindow()
 

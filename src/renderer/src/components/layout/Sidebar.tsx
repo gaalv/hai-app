@@ -1,356 +1,201 @@
-import { useState, useEffect } from 'react'
-import { useFileTreeStore } from '../../stores/fileTree.store'
-import { useEditorStore } from '../../stores/editor.store'
-import { useVaultStore } from '../../stores/vault.store'
-import { useUIStore } from '../../stores/ui.store'
+import { useEffect } from 'react'
 import { useManifestStore } from '../../stores/manifest.store'
-import type { FileNode } from '../../types/notes'
-import type { Notebook } from '../../types/manifest'
-import { pathJoin, pathRelative } from '../../lib/path'
+import { useNotesStore } from '../../stores/notes.store'
+import { useAuthStore } from '../../stores/auth.store'
 
-// ── Context menu ──────────────────────────────────────────
-
-interface ContextMenuState {
-  x: number; y: number
-  target: { type: 'note'; node: FileNode } | { type: 'notebook'; nb: Notebook }
-}
-
-// ── File node item ────────────────────────────────────────
-
-function NoteItem({ node, activePath, onContextMenu }: {
-  node: FileNode
-  activePath: string | null
-  vaultPath?: string
-  onContextMenu: (e: React.MouseEvent, node: FileNode) => void
-}): JSX.Element {
-  const openNote = useEditorStore((s) => s.openNote)
-  const isActive = node.path === activePath
-
-  return (
-    <div
-      className={`group flex items-center px-2 py-1 mx-1 rounded cursor-pointer transition-colors ${
-        isActive
-          ? 'bg-[var(--accent-dim)] text-[var(--accent)]'
-          : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
-      }`}
-      onClick={() => openNote(node.path)}
-      onContextMenu={(e) => onContextMenu(e, node)}
-      title={node.name}
-    >
-      <span className="font-sans text-[12px] truncate">{node.name.replace('.md', '')}</span>
-    </div>
-  )
-}
-
-// ── Section header ────────────────────────────────────────
-
-function SectionHeader({ label, action }: { label: string; action?: { icon: string; onClick: () => void; title: string } }): JSX.Element {
-  return (
-    <div className="flex items-center justify-between px-3 pt-3 pb-0.5">
-      <span className="font-sans text-[10px] font-medium text-[var(--text-4)] uppercase tracking-widest">{label}</span>
-      {action && (
-        <button
-          className="text-[var(--text-4)] hover:text-[var(--text-2)] text-xs cursor-pointer transition-colors w-4 h-4 flex items-center justify-center"
-          onClick={action.onClick}
-          title={action.title}
-        >
-          {action.icon}
-        </button>
-      )}
-    </div>
-  )
-}
-
-// ── Sidebar nav item ──────────────────────────────────────
-
-function NavItem({ icon, label, active, count, onClick }: {
-  icon: string; label: string; active: boolean; count?: number; onClick: () => void
-}): JSX.Element {
-  return (
-    <div
-      className={`flex items-center gap-2 px-3 py-1 mx-1 rounded cursor-pointer transition-colors ${
-        active
-          ? 'bg-[var(--accent-dim)] text-[var(--accent)]'
-          : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
-      }`}
-      onClick={onClick}
-    >
-      <span className="font-sans text-[11px] w-4 text-center shrink-0 opacity-70">{icon}</span>
-      <span className="font-sans text-[12px] flex-1 truncate">{label}</span>
-      {count !== undefined && count > 0 && (
-        <span className="font-sans text-[10px] text-[var(--text-4)] tabular-nums">{count}</span>
-      )}
-    </div>
-  )
-}
-
-// ── Main Sidebar ──────────────────────────────────────────
+const NOTEBOOK_COLORS = ['#7C6EF5', '#3FD68F', '#F5A623', '#F472B6', '#60A5FA', '#34D399', '#FB923C']
 
 export function Sidebar(): JSX.Element {
-  const { nodes, refresh } = useFileTreeStore()
-  const activePath = useEditorStore((s) => s.activeNote?.path ?? null)
-  const vaultConfig = useVaultStore((s) => s.config)
-  const vaultPath = vaultConfig?.path ?? ''
-  const sidebarWidth = useUIStore((s) => s.sidebarWidth)
-  const { manifest, view, activeNotebook, activeTag, setView, createNotebook, pinNote, unpinNote } = useManifestStore()
-  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const [expandedNbs, setExpandedNbs] = useState<Set<string>>(new Set())
-  const [newNbName, setNewNbName] = useState('')
-  const [creatingNb, setCreatingNb] = useState(false)
+  const { notebooks, tags, activeNotebook, setView, isLoaded, load } = useManifestStore()
+  const { loadNotes } = useNotesStore()
+  const { profile } = useAuthStore()
 
-  // Close context menu on click outside
   useEffect(() => {
-    const handler = (): void => setContextMenu(null)
-    window.addEventListener('click', handler)
-    return () => window.removeEventListener('click', handler)
-  }, [])
-
-  function toggleNotebook(id: string): void {
-    setExpandedNbs((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
-
-  async function handleNewNote(notebookPath?: string): Promise<void> {
-    const dest = notebookPath ? pathJoin(vaultPath, notebookPath) : vaultPath
-    const filePath = await window.electronAPI.notes.create(dest)
-    useEditorStore.getState().openNote(filePath)
-    refresh(vaultPath)
-  }
-
-  async function handleCreateNotebook(): Promise<void> {
-    if (!newNbName.trim()) return
-    await createNotebook(newNbName.trim())
-    setNewNbName('')
-    setCreatingNb(false)
-    refresh(vaultPath)
-  }
-
-  function handleNoteContextMenu(e: React.MouseEvent, node: FileNode): void {
-    e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, target: { type: 'note', node } })
-  }
-
-  // Pinned notes
-  const pinnedNodes = nodes.flatMap(function flat(n: FileNode): FileNode[] {
-    if (n.type === 'file') return [n]
-    return (n.children ?? []).flatMap(flat)
-  }).filter((n) => {
-    const rel = pathRelative(vaultPath, n.path)
-    return manifest.pinned.includes(rel)
-  })
-
-  // Inbox notes
-  const inboxPath = pathJoin(vaultPath, manifest.inbox)
-  const inboxNode = nodes.find((n) => n.type === 'dir' && n.path === inboxPath)
-  const inboxCount = inboxNode?.children?.length ?? 0
-
-  // All notes flat
-  function flatNotes(ns: FileNode[]): FileNode[] {
-    return ns.flatMap((n) => n.type === 'file' ? [n] : flatNotes(n.children ?? []))
-  }
-
-  // Notes for current view
-  function getViewNotes(): FileNode[] {
-    if (view === 'pinned') return pinnedNodes
-    if (view === 'inbox') return inboxNode?.children?.filter((n) => n.type === 'file') ?? []
-    if (view === 'all') return flatNotes(nodes)
-    if (view === 'notebook' && activeNotebook) {
-      const nb = manifest.notebooks.find((n) => n.id === activeNotebook)
-      if (!nb) return []
-      const nbAbsPath = pathJoin(vaultPath, nb.path)
-      const nbNode = nodes.find((n) => n.path === nbAbsPath)
-      return nbNode?.children?.filter((n) => n.type === 'file') ?? []
+    if (!isLoaded) {
+      load().then(() => {
+        // Auto-select first notebook if none selected
+        const manifest = useManifestStore.getState()
+        if (!manifest.activeNotebook && manifest.notebooks.length > 0) {
+          const first = manifest.notebooks[0]
+          setView('notebook', first.id)
+          loadNotes(first.id)
+        }
+      })
     }
-    if (view === 'tag' && activeTag) {
-      // Tag filtering requires reading frontmatter - for now show all (TODO: filter by tag)
-      return flatNotes(nodes)
-    }
-    return flatNotes(nodes)
+  }, [isLoaded])
+
+  function handleNotebookClick(notebookId: string): void {
+    setView('notebook', notebookId)
+    loadNotes(notebookId)
   }
 
-  const viewNotes = getViewNotes()
+  const workspaceName = profile?.name || profile?.login || 'Workspace'
 
   return (
-    <div
-      className="bg-[var(--surface)] border-r border-[var(--border)] flex flex-col h-full select-none"
-      style={{ width: sidebarWidth }}
+    <nav
+      className="flex flex-col shrink-0 overflow-hidden"
+      style={{
+        width: 220,
+        background: 'var(--app-sidebar)',
+        borderRight: '0.5px solid var(--app-border)',
+      }}
     >
-      {/* Vault name + new note */}
-      <div className="flex items-center justify-between px-3 py-2 shrink-0">
-        <span className="font-sans text-[11px] font-medium text-[var(--text-3)] uppercase tracking-[0.12em] truncate">
-          {vaultConfig?.name ?? 'Vault'}
-        </span>
-        <button
-          className="font-sans text-[var(--text-4)] hover:text-[var(--text-2)] cursor-pointer text-sm w-5 h-5 flex items-center justify-center transition-colors rounded hover:bg-[var(--surface-3)]"
-          onClick={() => handleNewNote()}
-          title="Nova nota (⌘N)"
-        >+</button>
-      </div>
-
-      {/* Navigation */}
-      <div className="flex-1 overflow-auto py-1">
-        {/* System views */}
-        <NavItem icon="≡" label="Todas as notas" active={view === 'all'} count={flatNotes(nodes).length} onClick={() => setView('all')} />
-        <NavItem icon="⬇" label="Inbox" active={view === 'inbox'} count={inboxCount} onClick={() => setView('inbox')} />
-        {pinnedNodes.length > 0 && (
-          <NavItem icon="📌" label="Fixadas" active={view === 'pinned'} count={pinnedNodes.length} onClick={() => setView('pinned')} />
-        )}
-
-        {/* Notebooks */}
-        <SectionHeader
-          label="Notebooks"
-          action={{ icon: '+', onClick: () => setCreatingNb(true), title: 'Criar notebook' }}
-        />
-
-        {creatingNb && (
-          <div className="px-2 mb-1 mt-0.5">
-            <input
-              className="w-full px-2 py-0.5 bg-[var(--surface-3)] text-[var(--text)] font-sans text-[12px] border border-[var(--accent)] rounded outline-none placeholder:text-[var(--text-4)]"
-              placeholder="Nome do notebook"
-              value={newNbName}
-              autoFocus
-              onChange={(e) => setNewNbName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreateNotebook()
-                if (e.key === 'Escape') setCreatingNb(false)
-              }}
-              onBlur={() => setCreatingNb(false)}
-            />
-          </div>
-        )}
-
-        {manifest.notebooks.map((nb) => (
-          <div key={nb.id}>
-            <div
-              className={`flex items-center gap-1.5 px-3 py-1 mx-1 rounded cursor-pointer transition-colors group ${
-                view === 'notebook' && activeNotebook === nb.id
-                  ? 'bg-[var(--accent-dim)] text-[var(--accent)]'
-                  : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
-              }`}
-              onClick={() => { setView('notebook', nb.id); toggleNotebook(nb.id) }}
-            >
-              <span className="font-sans text-[9px] text-[var(--text-4)] w-3 shrink-0">{expandedNbs.has(nb.id) ? '▾' : '▸'}</span>
-              <span className="font-sans text-[11px] w-4 text-center shrink-0 opacity-70">{nb.icon ?? '📓'}</span>
-              <span className="font-sans text-[12px] flex-1 truncate">{nb.name}</span>
-              <button
-                className="opacity-0 group-hover:opacity-100 text-[var(--text-4)] hover:text-[var(--text-2)] font-sans text-xs cursor-pointer transition-all"
-                onClick={(e) => { e.stopPropagation(); handleNewNote(nb.path) }}
-                title="Nova nota neste notebook"
-              >+</button>
-            </div>
-
-            {expandedNbs.has(nb.id) && view === 'notebook' && activeNotebook === nb.id && (
-              <div className="pl-4">
-                {viewNotes.map((n) => (
-                  <NoteItem
-                    key={n.path}
-                    node={n}
-                    activePath={activePath}
-                    vaultPath={vaultPath}
-                    onContextMenu={handleNoteContextMenu}
-                  />
-                ))}
-                {viewNotes.length === 0 && (
-                  <p className="px-3 py-1.5 font-sans text-[11px] text-[var(--text-4)]">Notebook vazio</p>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-
-        {/* Tags */}
-        {manifest.tags.length > 0 && (
-          <>
-            <SectionHeader label="Tags" />
-            {manifest.tags.map((tag) => (
-              <div
-                key={tag.name}
-                className={`flex items-center gap-2 px-3 py-1 mx-1 rounded cursor-pointer transition-colors ${
-                  view === 'tag' && activeTag === tag.name
-                    ? 'bg-[var(--accent-dim)] text-[var(--accent)]'
-                    : 'text-[var(--text-2)] hover:bg-[var(--surface-3)]'
-                }`}
-                onClick={() => setView('tag', tag.name)}
-              >
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
-                <span className="font-sans text-[12px] truncate">{tag.label}</span>
-              </div>
-            ))}
-          </>
-        )}
-
-        {/* Notes list for current view (non-notebook views) */}
-        {view !== 'notebook' && (
-          <>
-            <SectionHeader label={view === 'all' ? 'Notas' : view === 'inbox' ? 'Inbox' : view === 'pinned' ? 'Fixadas' : 'Resultados'} />
-            {viewNotes.length === 0 ? (
-              <p className="px-3 py-1.5 font-sans text-[11px] text-[var(--text-4)]">Nenhuma nota</p>
-            ) : (
-              viewNotes.map((n) => (
-                <NoteItem
-                  key={n.path}
-                  node={n}
-                  activePath={activePath}
-                  vaultPath={vaultPath}
-                  onContextMenu={handleNoteContextMenu}
-                />
-              ))
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Context menu */}
-      {contextMenu && contextMenu.target.type === 'note' && (
+      {/* Header */}
+      <div
+        className="shrink-0"
+        style={{ padding: '14px 14px 10px', borderBottom: '0.5px solid var(--app-border)' }}
+      >
         <div
-          className="fixed bg-[var(--surface-2)] border border-[var(--border-2)] rounded-md py-0.5 z-[500] shadow-lg shadow-black/40 min-w-[152px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={(e) => e.stopPropagation()}
+          style={{
+            fontSize: 11,
+            fontWeight: 500,
+            color: 'var(--app-text-2)',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            marginBottom: 10,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
         >
-          {(() => {
-            const node = (contextMenu.target as { type: 'note'; node: FileNode }).node
-            const rel = pathRelative(vaultPath, node.path)
-            const isPinned = manifest.pinned.includes(rel)
-            return (
-              <>
-                <button
-                  className="w-full text-left px-3 py-1.5 font-sans text-[12px] text-[var(--text-2)] hover:bg-[var(--surface-3)] cursor-pointer transition-colors"
-                  onClick={() => { isPinned ? unpinNote(rel) : pinNote(rel); setContextMenu(null) }}
-                >
-                  {isPinned ? '📌 Desafixar' : '📌 Fixar nota'}
-                </button>
-                <button
-                  className="w-full text-left px-3 py-1.5 font-sans text-[12px] text-[var(--text-2)] hover:bg-[var(--surface-3)] cursor-pointer transition-colors"
-                  onClick={async () => {
-                    const newName = prompt('Novo nome:', node.name.replace('.md', ''))
-                    if (!newName) { setContextMenu(null); return }
-                    await window.electronAPI.notes.rename(node.path, newName)
-                    refresh(vaultPath)
-                    setContextMenu(null)
-                  }}
-                >
-                  ✎ Renomear
-                </button>
-                <div className="border-t border-[var(--border)] my-0.5" />
-                <button
-                  className="w-full text-left px-3 py-1.5 font-sans text-[12px] text-red-400/80 hover:text-red-400 hover:bg-red-400/10 cursor-pointer transition-colors"
-                  onClick={async () => {
-                    if (!confirm(`Mover "${node.name}" para a lixeira?`)) { setContextMenu(null); return }
-                    await window.electronAPI.manifest.trashNote(node.path)
-                    refresh(vaultPath)
-                    setContextMenu(null)
-                  }}
-                >
-                  🗑 Mover para lixeira
-                </button>
-              </>
-            )
-          })()}
+          {workspaceName}
         </div>
-      )}
-    </div>
+        {/* Search bar (decorative for now) */}
+        <div
+          className="flex items-center cursor-text"
+          style={{
+            gap: 6,
+            background: 'rgba(255,255,255,0.04)',
+            border: '0.5px solid var(--app-border-mid)',
+            borderRadius: 'var(--app-radius)',
+            padding: '5px 8px',
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.3, flexShrink: 0 }}>
+            <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3"/>
+            <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
+          <span style={{ fontSize: 12, color: 'var(--app-text-3)' }}>Buscar notas...</span>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-auto">
+        {/* Notebooks section */}
+        <div style={{ padding: '10px 8px 4px' }}>
+          <div
+            style={{
+              fontSize: 10.5,
+              fontWeight: 500,
+              color: 'var(--app-text-3)',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              padding: '0 6px',
+              marginBottom: 2,
+            }}
+          >
+            Notebooks
+          </div>
+
+          {!isLoaded && (
+            <div style={{ padding: '8px 8px', fontSize: 12, color: 'var(--app-text-3)' }}>
+              Carregando...
+            </div>
+          )}
+
+          {isLoaded && notebooks.length === 0 && (
+            <div style={{ padding: '8px 8px', fontSize: 12, color: 'var(--app-text-3)' }}>
+              Nenhum notebook
+            </div>
+          )}
+
+          {notebooks.map((nb, i) => {
+            const color = nb.color || NOTEBOOK_COLORS[i % NOTEBOOK_COLORS.length]
+            const isActive = activeNotebook === nb.id
+            return (
+              <div
+                key={nb.id}
+                className="flex items-center cursor-pointer"
+                onClick={() => handleNotebookClick(nb.id)}
+                style={{
+                  gap: 8,
+                  padding: '6px 8px',
+                  borderRadius: 'var(--app-radius)',
+                  background: isActive ? 'var(--app-accent-dim)' : 'transparent',
+                  color: isActive ? 'var(--app-text-1)' : 'var(--app-text-2)',
+                  fontSize: 12.5,
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    ;(e.currentTarget as HTMLElement).style.background = 'var(--app-hover)'
+                    ;(e.currentTarget as HTMLElement).style.color = 'var(--app-text-1)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    ;(e.currentTarget as HTMLElement).style.background = 'transparent'
+                    ;(e.currentTarget as HTMLElement).style.color = 'var(--app-text-2)'
+                  }
+                }}
+              >
+                <span
+                  style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }}
+                />
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {nb.name}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Tags section */}
+        {tags.length > 0 && (
+          <>
+            <div style={{ padding: '10px 8px 4px' }}>
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 500,
+                  color: 'var(--app-text-3)',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  padding: '0 6px',
+                  marginBottom: 2,
+                }}
+              >
+                Tags
+              </div>
+            </div>
+            <div style={{ padding: '0 8px 8px' }}>
+              {tags.map((tag) => (
+                <TagPill key={tag.name} label={`# ${tag.label || tag.name}`} color={tag.color} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </nav>
+  )
+}
+
+function TagPill({ label, color, active }: { label: string; color?: string; active?: boolean }): JSX.Element {
+  return (
+    <span
+      className="inline-flex items-center cursor-pointer"
+      style={{
+        padding: '3px 8px',
+        background: active ? 'var(--app-accent-dim)' : 'var(--app-tag-bg)',
+        borderRadius: 100,
+        fontSize: 11,
+        color: active ? (color || 'var(--app-accent)') : 'var(--app-tag-text)',
+        margin: '2px 2px',
+        border: active ? '0.5px solid rgba(124,110,245,0.3)' : '0.5px solid var(--app-border)',
+        transition: 'background 0.12s, color 0.12s',
+      }}
+    >
+      {label}
+    </span>
   )
 }

@@ -72,7 +72,9 @@ export function registerAuthHandlers(): void {
 
   // Start device flow authentication
   ipcMain.handle('auth:device-flow-start', async () => {
-    const clientId = store.get('githubClientId') as string | undefined | null
+    const clientId =
+      (store.get('githubClientId') as string | undefined | null) ||
+      process.env.GITHUB_CLIENT_ID
     if (!clientId) {
       return { error: 'client_id_not_configured' }
     }
@@ -86,7 +88,15 @@ export function registerAuthHandlers(): void {
       body: `client_id=${clientId}&scope=repo%20read:user`
     })
 
-    if (!res.ok) throw new Error('Erro ao iniciar autenticação com GitHub')
+    if (!res.ok) {
+      // 404 means the client_id doesn't exist — clear it and ask user to re-enter
+      if (res.status === 404 || res.status === 422) {
+        store.delete('githubClientId')
+        return { error: 'client_id_not_configured' }
+      }
+      const body = await res.text().catch(() => '')
+      throw new Error(`GitHub device flow error ${res.status}: ${body}`)
+    }
     const data = await res.json() as {
       device_code: string
       user_code: string
@@ -113,16 +123,12 @@ export function registerAuthHandlers(): void {
   })
 
   // Poll for token after user authorizes
-  ipcMain.handle('auth:device-flow-poll', async (_e, deviceCode: string, interval: number) => {
+  // NOTE: the renderer controls the timing — this handler just makes the request immediately
+  ipcMain.handle('auth:device-flow-poll', async (_e, deviceCode: string) => {
     const clientId = store.get('githubClientId') as string | undefined | null
     if (!clientId) {
       return { success: false, error: 'client_id_not_configured' }
     }
-
-    // interval may be in ms (from renderer) or seconds (from spec); normalize to ms
-    const waitMs = interval > 1000 ? interval : interval * 1000
-
-    await new Promise((r) => setTimeout(r, waitMs))
 
     const res = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',

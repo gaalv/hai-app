@@ -6,8 +6,8 @@ export const authService = {
     return result
   },
 
-  async pollDeviceFlow(deviceCode: string, interval: number) {
-    return window.electronAPI.auth.deviceFlowPoll(deviceCode, interval)
+  async pollDeviceFlow(deviceCode: string) {
+    return window.electronAPI.auth.deviceFlowPoll(deviceCode)
   },
 
   async getProfile() {

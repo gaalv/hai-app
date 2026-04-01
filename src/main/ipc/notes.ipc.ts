@@ -2,9 +2,29 @@ import { ipcMain, shell, BrowserWindow } from 'electron'
 import fs from 'fs/promises'
 import path from 'path'
 import chokidar, { type FSWatcher } from 'chokidar'
-import type { FileNode } from '../../renderer/src/types/notes'
+import matter from 'gray-matter'
+import { v4 as uuidv4 } from 'uuid'
+import store from '../store'
+import type { FileNode, NoteListItem } from '../../renderer/src/types/notes'
+import type { HaiManifest } from '../../renderer/src/types/manifest'
 
 let watcher: FSWatcher | null = null
+
+function getVaultPath(): string {
+  const config = store.get('vaultConfig')
+  if (!config) throw new Error('Vault não configurado')
+  return config.path
+}
+
+async function loadManifest(vaultPath: string): Promise<HaiManifest> {
+  const manifestPath = path.join(vaultPath, 'hai.json')
+  try {
+    const raw = await fs.readFile(manifestPath, 'utf-8')
+    return { version: '1', notebooks: [], tags: [], pinned: [], inbox: 'inbox', trash: [], ...JSON.parse(raw) }
+  } catch {
+    return { version: '1', notebooks: [], tags: [], pinned: [], inbox: 'inbox', trash: [] }
+  }
+}
 
 async function readDir(dirPath: string): Promise<FileNode[]> {
   const entries = await fs.readdir(dirPath, { withFileTypes: true })
@@ -39,7 +59,16 @@ export function registerNotesHandlers(): void {
 
   ipcMain.handle('notes:save', async (_event, filePath: string, content: string) => {
     await fs.mkdir(path.dirname(filePath), { recursive: true })
-    await fs.writeFile(filePath, content, 'utf-8')
+    // Update the `updated` frontmatter timestamp on every save
+    let finalContent = content
+    if (content.startsWith('---')) {
+      try {
+        const parsed = matter(content)
+        parsed.data.updated = new Date().toISOString()
+        finalContent = matter.stringify(parsed.content, parsed.data)
+      } catch { /* keep original content */ }
+    }
+    await fs.writeFile(filePath, finalContent, 'utf-8')
   })
 
   ipcMain.handle('notes:create', async (_event, vaultPath: string, name?: string) => {
@@ -66,6 +95,81 @@ export function registerNotesHandlers(): void {
 
   ipcMain.handle('notes:list-all', async (_event, vaultPath: string) => {
     return readDir(vaultPath)
+  })
+
+  // notes:list-in-notebook — list notes in a notebook with frontmatter metadata
+  ipcMain.handle('notes:list-in-notebook', async (_event, notebookId: string) => {
+    const vaultPath = getVaultPath()
+    const manifest = await loadManifest(vaultPath)
+    const nb = manifest.notebooks.find((n) => n.id === notebookId)
+    if (!nb) return []
+
+    const nbPath = path.join(vaultPath, nb.path)
+    try {
+      const entries = await fs.readdir(nbPath)
+      const notes: NoteListItem[] = []
+
+      for (const entry of entries) {
+        if (!entry.endsWith('.md') || entry.startsWith('.')) continue
+        const filePath = path.join(nbPath, entry)
+        try {
+          const raw = await fs.readFile(filePath, 'utf-8')
+          const parsed = matter(raw)
+          const title = (parsed.data.title as string) || entry.replace('.md', '')
+          const preview = parsed.content.replace(/^#+\s.*/gm, '').trim().replace(/\s+/g, ' ').slice(0, 120)
+
+          notes.push({
+            absolutePath: filePath,
+            relativePath: path.relative(vaultPath, filePath),
+            title,
+            preview,
+            tags: (parsed.data.tags as string[]) ?? [],
+            created: (parsed.data.created as string) ?? new Date().toISOString(),
+            updated: (parsed.data.updated as string) ?? new Date().toISOString()
+          })
+        } catch { /* skip unreadable files */ }
+      }
+
+      return notes.sort((a, b) => b.updated.localeCompare(a.updated))
+    } catch {
+      return []
+    }
+  })
+
+  // notes:create-in-notebook — create a new markdown note inside a notebook folder
+  ipcMain.handle('notes:create-in-notebook', async (_event, notebookId: string, title?: string) => {
+    const vaultPath = getVaultPath()
+    const manifest = await loadManifest(vaultPath)
+    const nb = manifest.notebooks.find((n) => n.id === notebookId)
+    if (!nb) throw new Error('Notebook não encontrado')
+
+    const nbPath = path.join(vaultPath, nb.path)
+    await fs.mkdir(nbPath, { recursive: true })
+
+    const noteTitle = title || 'Sem título'
+    const now = new Date().toISOString()
+    const filename = `${uuidv4()}.md`
+    const filePath = path.join(nbPath, filename)
+
+    const content = matter.stringify('\n', {
+      title: noteTitle,
+      created: now,
+      updated: now,
+      tags: [],
+      notebook: notebookId
+    })
+    await fs.writeFile(filePath, content, 'utf-8')
+
+    const note: NoteListItem = {
+      absolutePath: filePath,
+      relativePath: path.relative(vaultPath, filePath),
+      title: noteTitle,
+      preview: '',
+      tags: [],
+      created: now,
+      updated: now
+    }
+    return note
   })
 
   ipcMain.handle('notes:watch-start', async (_event, vaultPath: string) => {

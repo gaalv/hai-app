@@ -217,8 +217,9 @@ const linkClickHandler = EditorView.domEventHandlers({
       }
     }
 
-    if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
-      window.electronAPI.shell.openExternal(url)
+    const urlStr = url as string | null
+    if (urlStr && (urlStr.startsWith('https://') || urlStr.startsWith('http://'))) {
+      // shell.openExternal not currently exposed — links are opened via setWindowOpenHandler
       return true
     }
 

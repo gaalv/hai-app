@@ -7,12 +7,11 @@ import { useAuthStore } from "../../stores/auth.store";
 import { useModeStore } from "../../stores/mode.store";
 import { OnboardingScreen } from "../vault/OnboardingScreen";
 import { OnboardingModeStep } from "../onboarding/OnboardingModeStep";
-import { LoginScreen } from "../auth/LoginScreen";
 import { MainLayout } from "./MainLayout";
 
 export function AppShell(): JSX.Element {
   const { config, isLoading: isVaultLoading, error } = useVaultStore();
-  const { profile, isLoading: isAuthLoading } = useAuthStore();
+  const { isLoading: isAuthLoading } = useAuthStore();
   const { mode, isLoaded: isModeLoaded } = useModeStore();
 
   useEffect(() => {
@@ -41,10 +40,6 @@ export function AppShell(): JSX.Element {
 
   if (mode === null) {
     return <OnboardingModeStep onComplete={() => {}} />;
-  }
-
-  if (mode === 'sync' && !profile) {
-    return <LoginScreen />;
   }
 
   if (error && !config) {

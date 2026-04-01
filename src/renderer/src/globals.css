@@ -10,6 +10,27 @@
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
+/* ── App design tokens (new layout) ──────────────────── */
+:root {
+  --app-rail: #0A0A0E;
+  --app-sidebar: #0F0F14;
+  --app-list: #131318;
+  --app-main: #16161C;
+  --app-accent: #7C6EF5;
+  --app-accent-dim: rgba(124,110,245,0.12);
+  --app-accent-glow: rgba(124,110,245,0.2);
+  --app-border: rgba(255,255,255,0.055);
+  --app-border-mid: rgba(255,255,255,0.09);
+  --app-text-1: #EEEEF2;
+  --app-text-2: #8888A0;
+  --app-text-3: #505062;
+  --app-hover: rgba(255,255,255,0.04);
+  --app-selected: rgba(124,110,245,0.11);
+  --app-tag-bg: rgba(255,255,255,0.06);
+  --app-tag-text: #9090B0;
+  --app-radius: 6px;
+}
+
 /* ── Dark theme (default) ─────────────────────────────── */
 :root,
 [data-theme="dark"] {
@@ -92,6 +113,49 @@ html, body, #root {
 /* ── Mac titlebar drag region ────────────────────────── */
 .titlebar-drag    { -webkit-app-region: drag; }
 .titlebar-no-drag { -webkit-app-region: no-drag; }
+
+/* ── Spin animation (loading spinners) ──────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Pulse animation ─────────────────────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.pulse-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #3FD68F;
+  display: inline-block;
+  flex-shrink: 0;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ── Blink animation (search cursor) ────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* ── Search result mark highlights ──────────────────── */
+.search-result-mark mark {
+  background: rgba(124,110,245,0.25);
+  color: var(--app-accent);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+.search-result-mark-dim mark {
+  background: rgba(124,110,245,0.2);
+  color: var(--app-text-2);
+  border-radius: 2px;
+  padding: 0 1px;
+}
 
 /* ── Scrollbar ───────────────────────────────────────── */
 ::-webkit-scrollbar        { width: 4px; height: 4px; }

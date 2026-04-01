@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  repo: {
+    getConfig: () => ipcRenderer.invoke('repo:get-config'),
+    connect: (repoUrl: string) => ipcRenderer.invoke('repo:connect', repoUrl),
+    create: (repoName: string) => ipcRenderer.invoke('repo:create', repoName)
+  },
+
   vault: {
     openPicker: () => ipcRenderer.invoke('vault:open-picker'),
     configure: (path: string) => ipcRenderer.invoke('vault:configure', path),
@@ -15,6 +21,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (path: string) => ipcRenderer.invoke('notes:delete', path),
     rename: (oldPath: string, newName: string) => ipcRenderer.invoke('notes:rename', oldPath, newName),
     listAll: (vaultPath: string) => ipcRenderer.invoke('notes:list-all', vaultPath),
+    listInNotebook: (notebookId: string) => ipcRenderer.invoke('notes:list-in-notebook', notebookId),
+    createInNotebook: (notebookId: string, title?: string) => ipcRenderer.invoke('notes:create-in-notebook', notebookId, title),
     watchStart: (vaultPath: string) => ipcRenderer.invoke('notes:watch-start', vaultPath),
     watchStop: () => ipcRenderer.invoke('notes:watch-stop')
   },
@@ -56,7 +64,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getToken: () => ipcRenderer.invoke('auth:get-token'),
     getProfile: () => ipcRenderer.invoke('auth:get-profile'),
     deviceFlowStart: () => ipcRenderer.invoke('auth:device-flow-start'),
-    deviceFlowPoll: (deviceCode: string, interval: number) => ipcRenderer.invoke('auth:device-flow-poll', deviceCode, interval),
+    deviceFlowPoll: (deviceCode: string) => ipcRenderer.invoke('auth:device-flow-poll', deviceCode),
     setClientId: (clientId: string) => ipcRenderer.invoke('auth:set-client-id', clientId),
     logout: () => ipcRenderer.invoke('auth:logout')
   },

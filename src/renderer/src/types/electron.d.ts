@@ -1,8 +1,19 @@
 import type { VaultConfig } from './vault'
 import type { HaiManifest, Notebook, Tag, TrashEntry } from './manifest'
 import type { GitHubProfile } from './auth'
+import type { NoteListItem } from './notes'
+
+export interface RepoConfig {
+  localPath: string
+  repoUrl: string
+}
 
 export interface ElectronAPI {
+  repo: {
+    getConfig: () => Promise<RepoConfig | null>
+    connect: (repoUrl: string) => Promise<RepoConfig>
+    create: (repoName: string) => Promise<RepoConfig>
+  }
   vault: {
     openPicker: () => Promise<VaultConfig | null>
     configure: (path: string) => Promise<VaultConfig>
@@ -16,6 +27,8 @@ export interface ElectronAPI {
     delete: (path: string) => Promise<void>
     rename: (oldPath: string, newName: string) => Promise<string>
     listAll: (vaultPath: string) => Promise<import('./notes').FileNode[]>
+    listInNotebook: (notebookId: string) => Promise<NoteListItem[]>
+    createInNotebook: (notebookId: string, title?: string) => Promise<NoteListItem>
     watchStart: (vaultPath: string) => Promise<void>
     watchStop: () => Promise<void>
   }
@@ -57,7 +70,7 @@ export interface ElectronAPI {
       | { error: 'client_id_not_configured' }
       | { device_code: string; user_code: string; verification_uri: string; interval: number; expires_in: number }
     >
-    deviceFlowPoll: (deviceCode: string, interval: number) => Promise<
+    deviceFlowPoll: (deviceCode: string) => Promise<
       | { success: true; token: string; profile: GitHubProfile }
       | { success: false; pending: true }
       | { success: false; error: string }
