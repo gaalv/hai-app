@@ -20,15 +20,17 @@ export interface ElectronAPI {
     watchStop: () => Promise<void>
   }
   sync: {
-    configure: (pat: string, repoUrl: string) => Promise<void>
+    configure: (repoUrl: string) => Promise<{ success: boolean }>
     push: (message?: string) => Promise<import('./sync').PushResult>
     pull: () => Promise<import('./sync').PullResult>
-    resolveConflict: (path: string, choice: 'local' | 'remote') => Promise<void>
+    resolveConflict: (path: string, choice: 'local' | 'remote') => Promise<{ success: boolean }>
     getStatus: () => Promise<import('./sync').SyncStatus>
     getHistory: (relativePath?: string) => Promise<CommitEntry[]>
     getDiff: (relativePath: string, oidA: string, oidB: string) => Promise<{ before: string; after: string }>
     restoreVersion: (relativePath: string, oid: string) => Promise<string>
     setInterval: (minutes: number) => Promise<void>
+    setAutoSync: (intervalMinutes: number) => Promise<void>
+    stopAutoSync: () => Promise<void>
   }
   manifest: {
     load: () => Promise<HaiManifest>
@@ -51,8 +53,15 @@ export interface ElectronAPI {
   auth: {
     getToken: () => Promise<string | null>
     getProfile: () => Promise<GitHubProfile | null>
-    deviceFlowStart: () => Promise<{ userCode: string; verificationUri: string; deviceCode: string; interval: number; expiresIn: number }>
-    deviceFlowPoll: (deviceCode: string, interval: number) => Promise<{ token: string; profile: GitHubProfile }>
+    deviceFlowStart: () => Promise<
+      | { error: 'client_id_not_configured' }
+      | { device_code: string; user_code: string; verification_uri: string; interval: number; expires_in: number }
+    >
+    deviceFlowPoll: (deviceCode: string, interval: number) => Promise<
+      | { success: true; token: string; profile: GitHubProfile }
+      | { success: false; pending: true }
+      | { success: false; error: string }
+    >
     setClientId: (clientId: string) => Promise<void>
     logout: () => Promise<void>
   }
@@ -74,9 +83,14 @@ export interface ElectronAPI {
     md: () => Promise<string[]>
     folder: () => Promise<string[]>
   }
+  app: {
+    getMode: () => Promise<'local' | 'sync' | null>
+    setMode: (mode: 'local' | 'sync') => Promise<void>
+  }
   onFileTreeChanged: (callback: () => void) => void
   onSyncAutoSynced: (callback: (data: { timestamp: string; files: number }) => void) => void
   onSyncAutoError: (callback: (data: { error: string }) => void) => void
+  onSyncConflictDetected: (callback: (data: { conflicts: import('./sync').ConflictFile[] }) => void) => void
   onAuthChanged: (callback: (event: string) => void) => void
 }
 

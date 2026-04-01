@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   sync: {
-    configure: (pat: string, repoUrl: string) => ipcRenderer.invoke('sync:configure', pat, repoUrl),
+    configure: (repoUrl: string) => ipcRenderer.invoke('sync:configure', repoUrl),
     push: (message?: string) => ipcRenderer.invoke('sync:push', message),
     pull: () => ipcRenderer.invoke('sync:pull'),
     resolveConflict: (path: string, choice: 'local' | 'remote') => ipcRenderer.invoke('sync:resolve-conflict', path, choice),
@@ -28,7 +28,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getHistory: (relativePath?: string) => ipcRenderer.invoke('sync:get-history', relativePath),
     getDiff: (relativePath: string, oidA: string, oidB: string) => ipcRenderer.invoke('sync:get-diff', relativePath, oidA, oidB),
     restoreVersion: (relativePath: string, oid: string) => ipcRenderer.invoke('sync:restore-version', relativePath, oid),
-    setInterval: (minutes: number) => ipcRenderer.invoke('sync:set-interval', minutes)
+    setInterval: (minutes: number) => ipcRenderer.invoke('sync:set-interval', minutes),
+    setAutoSync: (intervalMinutes: number) => ipcRenderer.invoke('sync:set-auto', intervalMinutes),
+    stopAutoSync: () => ipcRenderer.invoke('sync:stop-auto')
   },
 
   manifest: {
@@ -81,6 +83,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     folder: () => ipcRenderer.invoke('import:folder')
   },
 
+  app: {
+    getMode: () => ipcRenderer.invoke('app:get-mode'),
+    setMode: (mode: 'local' | 'sync') => ipcRenderer.invoke('app:set-mode', mode)
+  },
+
   // Events
   onFileTreeChanged: (callback: () => void) => {
     ipcRenderer.on('filetree:changed', callback)
@@ -90,6 +97,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   onSyncAutoError: (callback: (data: { error: string }) => void) => {
     ipcRenderer.on('sync:auto-error', (_e, data) => callback(data))
+  },
+  onSyncConflictDetected: (callback: (data: { conflicts: import('../renderer/src/types/sync').ConflictFile[] }) => void) => {
+    ipcRenderer.on('sync:conflict-detected', (_e, data) => callback(data))
   },
   onAuthChanged: (callback: (event: string) => void) => {
     ipcRenderer.on('auth:changed', (_e, event) => callback(event))
