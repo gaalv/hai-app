@@ -106,17 +106,28 @@ async function handlePush(message?: string): Promise<PushResult> {
     console.log('[sync:push] no local changes, checking for unpushed commits...')
   }
 
-  // Always push — there may be previously committed but unpushed changes
+  // Push to remote — single-user app, local is source of truth
+  // Clear stale tracking ref so isomorphic-git doesn't send wrong expected oid
   try {
-    await git.push({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
-  } catch (pushErr: unknown) {
-    if (pushErr && typeof pushErr === 'object' && 'code' in pushErr && (pushErr as { code: string }).code === 'PushRejectedError') {
-      console.warn('[sync:push] not-fast-forward, retrying with force')
-      await git.push({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', force: true, onAuth: getOnAuth(token) })
-    } else {
-      throw pushErr
-    }
-  }
+    await git.deleteRef({ fs: { promises: fs }, dir: vaultConfig.path, ref: 'refs/remotes/origin/main' })
+  } catch { /* ref may not exist */ }
+  try {
+    await git.deleteRef({ fs: { promises: fs }, dir: vaultConfig.path, ref: 'refs/remotes/origin/HEAD' })
+  } catch { /* ref may not exist */ }
+
+  await git.push({
+    fs: { promises: fs }, http,
+    dir: vaultConfig.path,
+    remote: 'origin',
+    force: true,
+    onAuth: getOnAuth(token)
+  })
+
+  // Fetch to restore correct tracking refs
+  try {
+    await git.fetch({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
+  } catch { /* non-critical */ }
+
   console.log('[sync:push] pushed to origin')
 
   const timestamp = new Date().toISOString()
