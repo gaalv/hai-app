@@ -1,111 +1,151 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useSearchStore } from '../../stores/search.store'
+import { searchService } from '../../services/search'
+import { useManifestStore } from '../../stores/manifest.store'
+import { useEditorStore } from '../../stores/editor.store'
+import type { SearchResult as SearchResultType } from '../../types/electron'
+
+const DEBOUNCE_MS = 300
+const RECENT_DAYS = 7
+
+type FilterType =
+  | { kind: 'notebook'; notebookId: string }
+  | { kind: 'tag'; tagName: string }
+  | { kind: 'recent' }
 
 export function SearchPanel(): JSX.Element {
-  const [filters, setFilters] = useState<Record<string, boolean>>({
-    notebooks: true,
-    planning: false,
-    month: false,
-    favorites: false,
-  })
+  const query = useSearchStore((s) => s.query)
+  const results = useSearchStore((s) => s.results)
+  const isLoading = useSearchStore((s) => s.isLoading)
+  const setQuery = useSearchStore((s) => s.setQuery)
 
-  function toggleFilter(key: string) {
-    setFilters((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
+  const notebooks = useManifestStore((s) => s.notebooks)
+  const tags = useManifestStore((s) => s.tags)
+
+  const [activeFilters, setActiveFilters] = useState<FilterType[]>([])
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const handleQueryChange = useCallback(
+    (value: string) => {
+      setQuery(value)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+      debounceRef.current = setTimeout(() => {
+        searchService.query(value)
+      }, DEBOUNCE_MS)
+    },
+    [setQuery]
+  )
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  const toggleFilter = useCallback((filter: FilterType) => {
+    setActiveFilters((prev) => {
+      const exists = prev.some((f) => filterKey(f) === filterKey(filter))
+      return exists ? prev.filter((f) => filterKey(f) !== filterKey(filter)) : [...prev, filter]
+    })
+  }, [])
+
+  const isFilterActive = useCallback(
+    (filter: FilterType) => activeFilters.some((f) => filterKey(f) === filterKey(filter)),
+    [activeFilters]
+  )
+
+  const notebookMap = useMemo(
+    () => new Map(notebooks.map((n) => [n.id, n])),
+    [notebooks]
+  )
+
+  const filteredResults = useMemo(() => {
+    if (activeFilters.length === 0) return results
+
+    return results.filter((r) => {
+      return activeFilters.every((filter) => {
+        switch (filter.kind) {
+          case 'notebook':
+            return r.notebook === filter.notebookId
+          case 'tag':
+            return r.tags.includes(filter.tagName)
+          case 'recent': {
+            if (!r.updatedAt) return false
+            const diff = Date.now() - new Date(r.updatedAt).getTime()
+            return diff <= RECENT_DAYS * 24 * 60 * 60 * 1000
+          }
+        }
+      })
+    })
+  }, [results, activeFilters])
+
+  const handleResultClick = useCallback((path: string) => {
+    useEditorStore.getState().openNote(path)
+  }, [])
 
   return (
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--app-sidebar)',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="flex-1 flex flex-col bg-[var(--app-sidebar)] overflow-hidden">
       {/* Top area */}
-      <div
-        style={{
-          padding: '20px 18px 14px',
-          borderBottom: '0.5px solid var(--app-border)',
-          flexShrink: 0,
-        }}
-      >
+      <div className="pt-5 px-[18px] pb-3.5 border-b-[0.5px] border-[var(--app-border)] shrink-0">
         {/* Search box */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'rgba(255,255,255,0.05)',
-            border: '0.5px solid rgba(124,110,245,0.4)',
-            borderRadius: 'var(--app-radius)',
-            padding: '8px 12px',
-            boxShadow: '0 0 0 3px rgba(124,110,245,0.08)',
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ opacity: 0.6, flexShrink: 0, color: 'var(--app-text-1)' }}>
+        <div className="flex items-center gap-2 bg-white/5 border-[0.5px] border-[rgba(124,110,245,0.4)] rounded-[var(--app-radius)] py-2 px-3 shadow-[0_0_0_3px_rgba(124,110,245,0.08)]">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="opacity-60 shrink-0 text-[var(--app-text-1)]">
             <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.4"/>
             <line x1="9" y1="9" x2="12.5" y2="12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
           </svg>
-          <div style={{ flex: 1, fontSize: 13, color: 'var(--app-text-1)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ color: 'var(--app-text-2)' }}>planning</span>
-            <span
-              className="blink"
-              style={{
-                display: 'inline-block',
-                width: 1.5,
-                height: 14,
-                background: 'var(--app-accent)',
-              }}
-            />
-          </div>
-          <span
-            style={{
-              fontSize: 10,
-              color: 'var(--app-text-3)',
-              background: 'rgba(255,255,255,0.05)',
-              border: '0.5px solid var(--app-border-mid)',
-              borderRadius: 4,
-              padding: '2px 5px',
-              marginLeft: 'auto',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => handleQueryChange(e.target.value)}
+            placeholder="Buscar notas…"
+            className="flex-1 text-[13px] text-[var(--app-text-1)] placeholder:text-[var(--app-text-3)] bg-transparent outline-none border-none"
+          />
+          <span className="text-[10px] text-[var(--app-text-3)] bg-white/5 border-[0.5px] border-[var(--app-border-mid)] rounded-[4px] py-[2px] px-[5px] ml-auto font-mono shrink-0">
             ⌘K
           </span>
         </div>
 
         {/* Filter pills */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12 }}>
+        <div className="flex gap-1.5 flex-wrap mt-3">
+          {notebooks.map((nb) => (
+            <FilterPill
+              key={nb.id}
+              active={isFilterActive({ kind: 'notebook', notebookId: nb.id })}
+              onClick={() => toggleFilter({ kind: 'notebook', notebookId: nb.id })}
+              icon={
+                <span
+                  className="w-[6px] h-[6px] rounded-full shrink-0 inline-block"
+                  style={{ background: nb.color ?? 'var(--app-accent)' }}
+                />
+              }
+            >
+              {nb.name}
+            </FilterPill>
+          ))}
+          {tags.map((tag) => (
+            <FilterPill
+              key={tag.name}
+              active={isFilterActive({ kind: 'tag', tagName: tag.name })}
+              onClick={() => toggleFilter({ kind: 'tag', tagName: tag.name })}
+              icon={
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M1 1h3.5l4 4-3.5 3.5-4-4V1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
+                  <circle cx="3" cy="3" r=".8" fill="currentColor"/>
+                </svg>
+              }
+            >
+              # {tag.label}
+            </FilterPill>
+          ))}
           <FilterPill
-            active={filters.notebooks}
-            onClick={() => toggleFilter('notebooks')}
-            icon={
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <rect x="1" y="1" width="3.5" height="3.5" rx=".6" fill="currentColor"/>
-                <rect x="5.5" y="1" width="3.5" height="3.5" rx=".6" fill="currentColor"/>
-                <rect x="1" y="5.5" width="3.5" height="3.5" rx=".6" fill="currentColor"/>
-                <rect x="5.5" y="5.5" width="3.5" height="3.5" rx=".6" fill="currentColor"/>
-              </svg>
-            }
-          >
-            Todos notebooks
-          </FilterPill>
-          <FilterPill
-            active={filters.planning}
-            onClick={() => toggleFilter('planning')}
-            icon={
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <path d="M1 1h3.5l4 4-3.5 3.5-4-4V1z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
-                <circle cx="3" cy="3" r=".8" fill="currentColor"/>
-              </svg>
-            }
-          >
-            # planning
-          </FilterPill>
-          <FilterPill
-            active={filters.month}
-            onClick={() => toggleFilter('month')}
+            active={isFilterActive({ kind: 'recent' })}
+            onClick={() => toggleFilter({ kind: 'recent' })}
             icon={
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                 <rect x="1" y="1.5" width="8" height="7" rx="1.2" stroke="currentColor" strokeWidth="1.1"/>
@@ -113,85 +153,89 @@ export function SearchPanel(): JSX.Element {
               </svg>
             }
           >
-            Este mês
-          </FilterPill>
-          <FilterPill
-            active={filters.favorites}
-            onClick={() => toggleFilter('favorites')}
-            icon={
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <path d="M5 1l1.1 2.3 2.5.35-1.8 1.75.43 2.5L5 6.7l-2.23 1.2.43-2.5L1.4 3.65l2.5-.35z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round"/>
-              </svg>
-            }
-          >
-            Favoritos
+            Últimos 7 dias
           </FilterPill>
         </div>
       </div>
 
       {/* Results */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <SectionLabel>3 resultados para "planning"</SectionLabel>
+      <div className="flex-1 overflow-y-auto">
+        {!query.trim() && (
+          <div className="flex items-center justify-center h-full text-[13px] text-[var(--app-text-3)]">
+            Busque por título, conteúdo ou tag
+          </div>
+        )}
 
-        <SearchResult
-          iconBg="rgba(124,110,245,0.12)"
-          iconColor="#7C6EF5"
-          title={<>Q1 <mark>Planning</mark> — Reunião de Kick-off</>}
-          excerpt="Definimos três OKRs principais para guiar o trabalho do time nos próximos 3 meses..."
-          notebookColor="#7C6EF5"
-          notebook="Trabalho"
-          tags={['# planning', '# meeting']}
-        />
+        {query.trim() && isLoading && (
+          <div className="flex items-center justify-center h-full">
+            <svg className="animate-spin h-5 w-5 text-[var(--app-accent)]" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+        )}
 
-        <SearchResult
-          iconBg="rgba(245,166,35,0.12)"
-          iconColor="#F5A623"
-          title={<>Roadmap do Produto — <mark>Planning</mark> Q2</>}
-          excerpt={<>Revisão das features prioritárias para o segundo trimestre. <mark>Planning</mark> com PMs e designers...</>}
-          notebookColor="#F5A623"
-          notebook="Projetos"
-          tags={['# planning']}
-        />
+        {query.trim() && !isLoading && filteredResults.length === 0 && (
+          <div className="flex items-center justify-center h-full text-[13px] text-[var(--app-text-3)]">
+            Nenhum resultado
+          </div>
+        )}
 
-        <SearchResult
-          iconBg="rgba(63,214,143,0.1)"
-          iconColor="#3FD68F"
-          title={<>Casamento — <mark>Planejamento</mark> Geral</>}
-          excerpt="Lista de tarefas e fornecedores. Local, buffet, convites e datas importantes para o grande dia..."
-          notebookColor="#3FD68F"
-          notebook="Pessoal"
-          tags={['# wedding', '# planning']}
-        />
+        {query.trim() && !isLoading && filteredResults.length > 0 && (
+          <>
+            <SectionLabel>
+              {filteredResults.length} resultado{filteredResults.length !== 1 ? 's' : ''} para &ldquo;{query}&rdquo;
+            </SectionLabel>
 
-        <SectionLabel style={{ marginTop: 8 }}>Recentes</SectionLabel>
+            {filteredResults.map((result) => {
+              const nb = result.notebook ? notebookMap.get(result.notebook) : undefined
+              const color = nb?.color ?? 'var(--app-accent)'
 
-        <SearchResult
-          dimIcon
-          title="Katu Lang — Sintaxe do Parser"
-          excerpt="Definição da gramática inicial. Tokens e regras de produção para expressões funcionais..."
-          notebookColor="#7C6EF5"
-          notebook="Trabalho"
-          tags={['# katu']}
-        />
-
-        <SearchResult
-          dimIcon
-          title="AWS Cloud Practitioner — Plano de Estudos"
-          excerpt="8 semanas até a prova. Semana 1: IAM, EC2, S3. Semana 2: RDS, VPC..."
-          notebookColor="#7C6EF5"
-          notebook="Trabalho"
-          tags={['# aws', '# study']}
-        />
+              return (
+                <SearchResultCard
+                  key={result.path}
+                  result={result}
+                  query={query}
+                  notebookName={nb?.name ?? null}
+                  notebookColor={color}
+                  onClick={() => handleResultClick(result.path)}
+                />
+              )
+            })}
+          </>
+        )}
       </div>
     </div>
   )
 }
 
+/* ── Helpers ── */
+
+function filterKey(f: FilterType): string {
+  switch (f.kind) {
+    case 'notebook': return `nb:${f.notebookId}`
+    case 'tag': return `tag:${f.tagName}`
+    case 'recent': return 'recent'
+  }
+}
+
+function highlightText(text: string, term: string): React.ReactNode {
+  if (!term.trim()) return text
+  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${escaped})`, 'gi')
+  const parts = text.split(regex)
+  return parts.map((part, i) =>
+    regex.test(part) ? <mark key={i}>{part}</mark> : part
+  )
+}
+
+/* ── Sub-components ── */
+
 function FilterPill({
   children,
   active,
   icon,
-  onClick,
+  onClick
 }: {
   children: React.ReactNode
   active?: boolean
@@ -201,35 +245,11 @@ function FilterPill({
   return (
     <div
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '4px 9px',
-        background: active ? 'var(--app-accent-dim)' : 'rgba(255,255,255,0.04)',
-        border: active ? '0.5px solid rgba(124,110,245,0.3)' : '0.5px solid var(--app-border-mid)',
-        borderRadius: 100,
-        fontSize: 11,
-        color: active ? 'var(--app-accent)' : 'var(--app-text-2)',
-        cursor: 'pointer',
-        transition: 'background 0.12s, color 0.12s, border-color 0.12s',
-      }}
-      onMouseEnter={(e) => {
-        if (!active) {
-          const el = e.currentTarget as HTMLElement
-          el.style.background = 'var(--app-accent-dim)'
-          el.style.color = 'var(--app-accent)'
-          el.style.borderColor = 'rgba(124,110,245,0.3)'
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!active) {
-          const el = e.currentTarget as HTMLElement
-          el.style.background = 'rgba(255,255,255,0.04)'
-          el.style.color = 'var(--app-text-2)'
-          el.style.borderColor = 'var(--app-border-mid)'
-        }
-      }}
+      className={`flex items-center gap-[5px] py-1 px-[9px] rounded-full text-[11px] cursor-pointer transition-[background,color,border-color] duration-[120ms] border-[0.5px] ${
+        active
+          ? 'bg-[var(--app-accent-dim)] border-[rgba(124,110,245,0.3)] text-[var(--app-accent)]'
+          : 'bg-white/[0.04] border-[var(--app-border-mid)] text-[var(--app-text-2)] hover:bg-[var(--app-accent-dim)] hover:text-[var(--app-accent)] hover:border-[rgba(124,110,245,0.3)]'
+      }`}
     >
       {icon}
       {children}
@@ -237,25 +257,15 @@ function FilterPill({
   )
 }
 
-function SectionLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }): JSX.Element {
+function SectionLabel({ children, className }: { children: React.ReactNode; className?: string }): JSX.Element {
   return (
-    <div
-      style={{
-        fontSize: 10,
-        textTransform: 'uppercase',
-        letterSpacing: '0.07em',
-        color: 'var(--app-text-3)',
-        fontWeight: 500,
-        padding: '14px 18px 6px',
-        ...style,
-      }}
-    >
+    <div className={`text-[10px] uppercase tracking-[0.07em] text-[var(--app-text-3)] font-medium pt-3.5 px-[18px] pb-1.5 ${className ?? ''}`}>
       {children}
     </div>
   )
 }
 
-const noteIconPath = (color: string) => (
+const noteIconPath = (color: string): JSX.Element => (
   <>
     <rect x="2" y="1.5" width="10" height="11" rx="1.5" stroke={color} strokeWidth="1.3"/>
     <line x1="4.5" y1="5" x2="9.5" y2="5" stroke={color} strokeWidth="1.2" strokeLinecap="round"/>
@@ -264,104 +274,61 @@ const noteIconPath = (color: string) => (
   </>
 )
 
-const dimNoteIcon = (
-  <>
-    <rect x="2" y="1.5" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3" opacity={0.35}/>
-    <line x1="4.5" y1="5" x2="9.5" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity={0.35}/>
-    <line x1="4.5" y1="7.5" x2="9.5" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity={0.35}/>
-  </>
-)
-
-function SearchResult({
-  iconBg,
-  iconColor,
-  dimIcon,
-  title,
-  excerpt,
+function SearchResultCard({
+  result,
+  query,
+  notebookName,
   notebookColor,
-  notebook,
-  tags,
+  onClick
 }: {
-  iconBg?: string
-  iconColor?: string
-  dimIcon?: boolean
-  title: React.ReactNode
-  excerpt: React.ReactNode
+  result: SearchResultType
+  query: string
+  notebookName: string | null
   notebookColor: string
-  notebook: string
-  tags: string[]
+  onClick: () => void
 }): JSX.Element {
+  const iconBg = notebookColor.startsWith('var(')
+    ? 'rgba(124,110,245,0.12)'
+    : hexToRgba(notebookColor, 0.12)
+
   return (
     <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 10,
-        padding: '10px 18px',
-        cursor: 'pointer',
-        transition: 'background 0.1s',
-        borderRadius: 'var(--app-radius)',
-        margin: '1px 6px',
-        color: 'var(--app-text-1)',
-      }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--app-hover)' }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+      onClick={onClick}
+      className="flex items-start gap-2.5 py-2.5 px-[18px] cursor-pointer transition-colors duration-100 rounded-[var(--app-radius)] my-px mx-1.5 text-[var(--app-text-1)] hover:bg-[var(--app-hover)]"
     >
       {/* Icon */}
       <div
-        style={{
-          width: 30,
-          height: 30,
-          borderRadius: 7,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-          marginTop: 1,
-          background: dimIcon ? 'rgba(255,255,255,0.04)' : iconBg,
-        }}
+        className="w-[30px] h-[30px] rounded-[7px] flex items-center justify-center shrink-0 mt-px"
+        style={{ background: iconBg }}
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          {dimIcon ? dimNoteIcon : noteIconPath(iconColor!)}
+          {noteIconPath(notebookColor)}
         </svg>
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'var(--app-text-1)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            marginBottom: 3,
-          }}
-        >
-          <MarkStyled>{title}</MarkStyled>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium text-[var(--app-text-1)] truncate mb-[3px]">
+          <MarkStyled>{highlightText(result.title, query)}</MarkStyled>
         </div>
-        <div style={{ fontSize: 11.5, color: 'var(--app-text-3)', lineHeight: 1.5 }}>
-          <MarkStyled dimMark>{excerpt}</MarkStyled>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
-          <div style={{ fontSize: 10.5, color: 'var(--app-text-3)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: notebookColor, flexShrink: 0, display: 'inline-block' }} />
-            {notebook}
+        {result.snippet && (
+          <div className="text-[11.5px] text-[var(--app-text-3)] leading-[1.5] line-clamp-2">
+            <MarkStyled dimMark>{highlightText(result.snippet, query)}</MarkStyled>
           </div>
-          {tags.map((tag) => (
+        )}
+        <div className="flex items-center gap-1.5 mt-[5px] flex-wrap">
+          {notebookName && (
+            <div className="text-[10.5px] text-[var(--app-text-3)] flex items-center gap-1">
+              <span className="w-[5px] h-[5px] rounded-full shrink-0 inline-block" style={{ background: notebookColor }} />
+              {notebookName}
+            </div>
+          )}
+          {result.tags.map((tag) => (
             <span
               key={tag}
-              style={{
-                fontSize: 10,
-                color: 'var(--app-text-3)',
-                background: 'rgba(255,255,255,0.05)',
-                border: '0.5px solid var(--app-border)',
-                padding: '1px 6px',
-                borderRadius: 100,
-              }}
+              className="text-[10px] text-[var(--app-text-3)] bg-white/5 border-[0.5px] border-[var(--app-border)] py-px px-1.5 rounded-full"
             >
-              {tag}
+              # {tag}
             </span>
           ))}
         </div>
@@ -370,11 +337,19 @@ function SearchResult({
   )
 }
 
-// Wrapper that applies mark styles (defined in globals.css)
 function MarkStyled({ children, dimMark }: { children: React.ReactNode; dimMark?: boolean }): JSX.Element {
   return (
     <span className={dimMark ? 'search-result-mark-dim' : 'search-result-mark'}>
       {children}
     </span>
   )
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace('#', '')
+  const r = parseInt(clean.substring(0, 2), 16)
+  const g = parseInt(clean.substring(2, 4), 16)
+  const b = parseInt(clean.substring(4, 6), 16)
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return `rgba(124,110,245,${alpha})`
+  return `rgba(${r},${g},${b},${alpha})`
 }

@@ -169,11 +169,22 @@ export function registerAuthHandlers(): void {
     store.set('githubClientId', clientId)
   })
 
+  // Soft logout — clears UI session but keeps the OAuth token in keytar
+  // so the user doesn't need to redo device activation on next login
   ipcMain.handle('auth:logout', async () => {
-    await deleteToken()
     store.delete('cachedProfile')
     store.delete('profileCachedAt')
     // Notify renderer
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send('auth:changed', 'logout')
+    })
+  })
+
+  // Hard logout — deletes the OAuth token, requiring full device flow on next login
+  ipcMain.handle('auth:logout-full', async () => {
+    await deleteToken()
+    store.delete('cachedProfile')
+    store.delete('profileCachedAt')
     BrowserWindow.getAllWindows().forEach((win) => {
       win.webContents.send('auth:changed', 'logout')
     })

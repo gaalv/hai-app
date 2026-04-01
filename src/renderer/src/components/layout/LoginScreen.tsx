@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { GitHubProfile } from '../../types/auth'
+import { HaiIcon } from '../ui/HaiIcon'
 
 type Step = 'idle' | 'waiting_browser' | 'polling' | 'setup_client_id'
 
@@ -15,6 +16,18 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
 
   async function handleLogin(): Promise<void> {
     setError(null)
+
+    // Check if there's already a valid token (e.g. soft logout)
+    try {
+      const existingToken = await window.electronAPI.auth.getToken()
+      if (existingToken) {
+        const profile = await window.electronAPI.auth.getProfile()
+        if (profile) {
+          onLogin(profile)
+          return
+        }
+      }
+    } catch { /* token invalid or expired — proceed with device flow */ }
 
     let result: Awaited<ReturnType<typeof window.electronAPI.auth.deviceFlowStart>>
     try {
@@ -79,95 +92,49 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: 'var(--app-main)',
-        position: 'relative',
-        overflow: 'hidden',
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        WebkitFontSmoothing: 'antialiased',
-        userSelect: 'none',
-      }}
-    >
+    <div className="flex items-center justify-center min-h-screen bg-[var(--app-main)] relative overflow-hidden font-[var(--font-sans)] text-[13px] antialiased select-none titlebar-drag">
       {/* Radial gradient */}
       <div
+        className="absolute inset-0 pointer-events-none"
         style={{
-          position: 'absolute',
-          inset: 0,
           background: 'radial-gradient(ellipse 60% 50% at 50% 30%, rgba(124,110,245,0.14) 0%, transparent 70%)',
-          pointerEvents: 'none',
         }}
       />
       {/* Grid pattern */}
       <div
+        className="absolute inset-0 pointer-events-none"
         style={{
-          position: 'absolute',
-          inset: 0,
           backgroundImage:
             'linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)',
           backgroundSize: '40px 40px',
-          pointerEvents: 'none',
           maskImage: 'radial-gradient(ellipse 70% 70% at 50% 40%, black 30%, transparent 80%)',
           WebkitMaskImage: 'radial-gradient(ellipse 70% 70% at 50% 40%, black 30%, transparent 80%)',
         }}
       />
 
       {/* Card */}
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          width: 360,
-          background: 'rgba(15,15,20,0.95)',
-          border: '0.5px solid var(--app-border-mid)',
-          borderRadius: 16,
-          padding: '36px 32px 32px',
-          backdropFilter: 'blur(20px)',
-        }}
-      >
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 9,
-              background: 'var(--app-accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
-              fontWeight: 500,
-              color: '#fff',
-              letterSpacing: '-0.5px',
-            }}
-          >
-            N
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--app-text-1)', letterSpacing: '-0.3px' }}>
-            Notas
+      <div className="relative z-[2] w-[360px] bg-[rgba(15,15,20,0.95)] border-[0.5px] border-[var(--app-border-mid)] rounded-2xl px-8 pt-9 pb-8 backdrop-blur-[20px] titlebar-no-drag">
+        {/* Logo — centered */}
+        <div className="flex flex-col items-center mb-7">
+          <HaiIcon size={48} className="mb-3" />
+          <div className="text-[17px] font-medium text-[var(--app-text-1)] tracking-[-0.3px]">
+            Hai
           </div>
         </div>
 
         {step === 'setup_client_id' ? (
           <>
-            <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--app-text-1)', letterSpacing: '-0.5px', marginBottom: 6 }}>
-              Configurar GitHub App
+            <div className="text-[18px] font-medium text-[var(--app-text-1)] tracking-[-0.5px] mb-[6px]">
             </div>
-            <div style={{ fontSize: 13, color: 'var(--app-text-2)', marginBottom: 20, lineHeight: 1.5 }}>
+            <div className="text-[13px] text-[var(--app-text-2)] mb-5 leading-normal">
               Para autenticar com GitHub, você precisa de um OAuth App com{' '}
-              <strong style={{ color: 'var(--app-text-1)' }}>Device Flow</strong> habilitado.
+              <strong className="text-[var(--app-text-1)]">Device Flow</strong> habilitado.
               Crie um em{' '}
-              <span style={{ color: 'var(--app-accent)' }}>github.com/settings/developers</span>
+              <span className="text-[var(--app-accent)]">github.com/settings/developers</span>
               , marque "Enable Device Flow" e cole o Client ID abaixo.
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--app-text-3)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 6 }}>
+            <div className="mb-4">
+              <div className="text-[11px] font-medium text-[var(--app-text-3)] tracking-[0.04em] uppercase mb-[6px]">
                 GitHub OAuth Client ID
               </div>
               <input
@@ -176,118 +143,63 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveClientId() }}
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '0.5px solid var(--app-border-mid)',
-                  borderRadius: 'var(--app-radius)',
-                  padding: '10px 12px',
-                  fontSize: 13,
-                  color: 'var(--app-text-1)',
-                  fontFamily: 'var(--font-sans)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(124,110,245,0.5)'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,110,245,0.1)'
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--app-border-mid)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
+                className="w-full bg-white/[0.04] border-[0.5px] border-[var(--app-border-mid)] rounded-[var(--app-radius)] py-[10px] px-3 text-[13px] text-[var(--app-text-1)] font-[var(--font-sans)] outline-none focus:border-[rgba(124,110,245,0.5)] focus:shadow-[0_0_0_3px_rgba(124,110,245,0.1)]"
               />
             </div>
             <Btn onClick={handleSaveClientId} disabled={!clientId.trim()}>Salvar e continuar</Btn>
             <div
               onClick={() => setStep('idle')}
-              style={{ marginTop: 12, textAlign: 'center', fontSize: 12, color: 'var(--app-text-3)', cursor: 'pointer' }}
+              className="mt-3 text-center text-[12px] text-[var(--app-text-3)] cursor-pointer"
             >
               Voltar
             </div>
           </>
         ) : step === 'waiting_browser' || step === 'polling' ? (
           <>
-            <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--app-text-1)', letterSpacing: '-0.5px', marginBottom: 6 }}>
+            <div className="text-[18px] font-medium text-[var(--app-text-1)] tracking-[-0.5px] mb-[6px]">
               Autorize no GitHub
             </div>
-            <div style={{ fontSize: 13, color: 'var(--app-text-2)', marginBottom: 20, lineHeight: 1.5 }}>
+            <div className="text-[13px] text-[var(--app-text-2)] mb-5 leading-normal">
               O browser foi aberto. Digite o código abaixo na página do GitHub para autorizar o acesso.
             </div>
 
             {/* User code display */}
-            <div
-              style={{
-                background: 'rgba(124,110,245,0.08)',
-                border: '0.5px solid rgba(124,110,245,0.3)',
-                borderRadius: 10,
-                padding: '16px',
-                textAlign: 'center',
-                marginBottom: 20,
-              }}
-            >
-              <div style={{ fontSize: 11, color: 'var(--app-text-3)', marginBottom: 8, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            <div className="bg-[rgba(124,110,245,0.08)] border-[0.5px] border-[rgba(124,110,245,0.3)] rounded-[10px] p-4 text-center mb-5">
+              <div className="text-[11px] text-[var(--app-text-3)] mb-2 tracking-[0.05em] uppercase">
                 Código de verificação
               </div>
-              <div
-                style={{
-                  fontSize: 28,
-                  fontWeight: 600,
-                  color: 'var(--app-text-1)',
-                  letterSpacing: '0.15em',
-                  fontFamily: 'var(--app-mono)',
-                }}
-              >
+              <div className="text-[28px] font-semibold text-[var(--app-text-1)] tracking-[0.15em] font-[var(--app-mono)]">
                 {userCode}
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--app-text-3)' }}>
+            <div className="flex items-center gap-2 text-[12px] text-[var(--app-text-3)]">
               <Spinner />
               {step === 'waiting_browser' ? 'Aguardando autorização...' : 'Verificando...'}
             </div>
 
             {error && (
-              <div style={{ marginTop: 12, fontSize: 12, color: '#F87171' }}>{error}</div>
+              <div className="mt-3 text-[12px] text-[#F87171]">{error}</div>
             )}
 
             <div
               onClick={() => { setStep('idle'); setError(null) }}
-              style={{ marginTop: 16, fontSize: 12, color: 'var(--app-text-3)', cursor: 'pointer', textAlign: 'center' }}
+              className="mt-4 text-[12px] text-[var(--app-text-3)] cursor-pointer text-center"
             >
               Cancelar
             </div>
           </>
         ) : (
           <>
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 500,
-                color: 'var(--app-text-1)',
-                letterSpacing: '-0.6px',
-                marginBottom: 6,
-                lineHeight: 1.2,
-              }}
-            >
+            <div className="text-[22px] font-medium text-[var(--app-text-1)] tracking-[-0.6px] mb-[6px] leading-[1.2] text-center">
               Bem-vindo
             </div>
-            <div style={{ fontSize: 13, color: 'var(--app-text-2)', marginBottom: 28 }}>
+            <div className="text-[13px] text-[var(--app-text-2)] mb-7 text-center">
               Entre com sua conta GitHub para continuar
             </div>
 
             {error && (
-              <div
-                style={{
-                  marginBottom: 16,
-                  padding: '10px 12px',
-                  background: 'rgba(248,113,113,0.08)',
-                  border: '0.5px solid rgba(248,113,113,0.3)',
-                  borderRadius: 'var(--app-radius)',
-                  fontSize: 12,
-                  color: '#F87171',
-                }}
-              >
+              <div className="mb-4 py-[10px] px-3 bg-[rgba(248,113,113,0.08)] border-[0.5px] border-[rgba(248,113,113,0.3)] rounded-[var(--app-radius)] text-[12px] text-[#F87171]">
                 {error}
               </div>
             )}
@@ -318,28 +230,7 @@ function Btn({
     <button
       onClick={onClick}
       disabled={disabled}
-      style={{
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        padding: 11,
-        background: disabled ? 'rgba(124,110,245,0.4)' : 'var(--app-accent)',
-        border: 'none',
-        borderRadius: 'var(--app-radius)',
-        fontSize: 13,
-        fontWeight: 500,
-        color: '#fff',
-        fontFamily: 'var(--font-sans)',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        letterSpacing: '-0.2px',
-        transition: 'opacity 0.15s, transform 0.1s',
-      }}
-      onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLElement).style.opacity = '0.88' }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1' }}
-      onMouseDown={(e) => { if (!disabled) (e.currentTarget as HTMLElement).style.transform = 'scale(0.99)' }}
-      onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)' }}
+      className={`w-full flex items-center justify-center gap-2 p-[11px] border-none rounded-[var(--app-radius)] text-[13px] font-medium text-white font-[var(--font-sans)] tracking-[-0.2px] transition-[opacity,transform] duration-150 hover:opacity-[0.88] active:scale-[0.99] ${disabled ? 'bg-[rgba(124,110,245,0.4)] cursor-not-allowed' : 'bg-[var(--app-accent)] cursor-pointer'}`}
     >
       {children}
     </button>
@@ -348,16 +239,6 @@ function Btn({
 
 function Spinner(): JSX.Element {
   return (
-    <div
-      style={{
-        width: 12,
-        height: 12,
-        borderRadius: '50%',
-        border: '1.5px solid rgba(255,255,255,0.15)',
-        borderTopColor: 'var(--app-accent)',
-        animation: 'spin 0.7s linear infinite',
-        flexShrink: 0,
-      }}
-    />
+    <div className="w-3 h-3 rounded-full border-[1.5px] border-white/15 border-t-[var(--app-accent)] animate-spin shrink-0" />
   )
 }

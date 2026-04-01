@@ -27,7 +27,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
-    trafficLightPosition: process.platform === 'darwin' ? { x: 14, y: 10 } : undefined,
+    trafficLightPosition: process.platform === 'darwin' ? { x: 14, y: 13 } : undefined,
     backgroundColor: '#0d1117',
     ...(process.platform === 'darwin' ? { vibrancy: 'under-window' } : {}),
     titleBarOverlay: process.platform !== 'darwin' ? { color: '#0d1117', symbolColor: '#ffffff' } : undefined,

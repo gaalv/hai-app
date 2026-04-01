@@ -1,182 +1,109 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useManifestStore } from '../../stores/manifest.store'
+import { useEditorStore } from '../../stores/editor.store'
+import { searchService } from '../../services/search'
+import type { SearchResult } from '../../types/electron'
+import type { Tag } from '../../types/manifest'
 
-interface TagData {
-  id: string
-  name: string
-  count: number
-  barWidth: number
-  color: string
-  icon: React.ReactNode
-}
-
-interface NoteData {
-  title: string
-  notebook: string
-  notebookColor: string
-  date: string
-}
-
-const NOTES_BY_TAG: Record<string, NoteData[]> = {
-  planning: [
-    { title: 'Q1 Planning — Reunião de Kick-off', notebook: 'Trabalho', notebookColor: '#7C6EF5', date: 'Hoje' },
-    { title: 'Roadmap do Produto — Planning Q2', notebook: 'Projetos', notebookColor: '#F5A623', date: 'Seg' },
-    { title: 'Casamento — Planejamento Geral', notebook: 'Pessoal', notebookColor: '#3FD68F', date: 'Dom' },
-    { title: 'Sprint Review — Retrospectiva', notebook: 'Projetos', notebookColor: '#F5A623', date: 'Sáb' },
-    { title: 'Churrasco dos Badgers — Organização', notebook: 'Pessoal', notebookColor: '#7C6EF5', date: 'Sex' },
-  ],
-  coding: [
-    { title: 'API Gateway — Decisões de Arquitetura', notebook: 'Trabalho', notebookColor: '#7C6EF5', date: 'Seg' },
-    { title: 'Katu Lang — Sintaxe do Parser', notebook: 'Trabalho', notebookColor: '#7C6EF5', date: 'Seg' },
-  ],
-  aws: [
-    { title: 'AWS Cloud Practitioner — Plano de Estudos', notebook: 'Trabalho', notebookColor: '#7C6EF5', date: 'Dom' },
-    { title: 'API Gateway — Decisões de Arquitetura', notebook: 'Trabalho', notebookColor: '#7C6EF5', date: 'Seg' },
-  ],
-  katu: [
-    { title: 'Katu Lang — Sintaxe do Parser', notebook: 'Trabalho', notebookColor: '#7C6EF5', date: 'Seg' },
-  ],
-  wedding: [
-    { title: 'Casamento — Planejamento Geral', notebook: 'Pessoal', notebookColor: '#3FD68F', date: 'Dom' },
-    { title: 'Lista de Convidados', notebook: 'Pessoal', notebookColor: '#3FD68F', date: 'Sáb' },
-  ],
-  study: [
-    { title: 'AWS Cloud Practitioner — Plano de Estudos', notebook: 'Trabalho', notebookColor: '#7C6EF5', date: 'Dom' },
-  ],
-}
-
-const TAGS: TagData[] = [
-  {
-    id: 'planning',
-    name: '# planning',
-    count: 5,
-    barWidth: 100,
-    color: '#7C6EF5',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <rect x="1.5" y="2" width="11" height="10" rx="1.5" stroke="#7C6EF5" strokeWidth="1.3"/>
-        <line x1="1.5" y1="5" x2="12.5" y2="5" stroke="#7C6EF5" strokeWidth="1"/>
-        <line x1="4" y1="8" x2="7" y2="8" stroke="#7C6EF5" strokeWidth="1.2" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'coding',
-    name: '# coding',
-    count: 7,
-    barWidth: 80,
-    color: '#3FD68F',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M5 4L2 7l3 3" stroke="#3FD68F" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M9 4l3 3-3 3" stroke="#3FD68F" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'aws',
-    name: '# aws',
-    count: 4,
-    barWidth: 55,
-    color: '#F5A623',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M7 2l4.5 7.5H2.5L7 2z" stroke="#F5A623" strokeWidth="1.3" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'katu',
-    name: '# katu',
-    count: 3,
-    barWidth: 40,
-    color: '#C084FC',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <circle cx="7" cy="7" r="4.5" stroke="#C084FC" strokeWidth="1.3"/>
-        <path d="M5 7h4M7 5v4" stroke="#C084FC" strokeWidth="1.2" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'wedding',
-    name: '# wedding',
-    count: 6,
-    barWidth: 72,
-    color: '#F472B6',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M7 11.5C7 11.5 2 8 2 5C2 3.3 3.3 2 5 2C6 2 6.9 2.5 7 2.5C7.1 2.5 8 2 9 2C10.7 2 12 3.3 12 5C12 8 7 11.5 7 11.5z" stroke="#F472B6" strokeWidth="1.3" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'study',
-    name: '# study',
-    count: 4,
-    barWidth: 55,
-    color: '#60A5FA',
-    icon: (
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path d="M7 2L13 5l-6 3L1 5z" stroke="#60A5FA" strokeWidth="1.3" strokeLinejoin="round"/>
-        <path d="M3.5 6.5V10C3.5 10 5 11.5 7 11.5C9 11.5 10.5 10 10.5 10V6.5" stroke="#60A5FA" strokeWidth="1.3" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
+const TAG_COLORS = [
+  '#7C6EF5', '#3FD68F', '#F5A623', '#C084FC',
+  '#F472B6', '#60A5FA', '#F87171', '#34D399',
 ]
 
-export function TagsPanel(): JSX.Element {
-  const [selectedTag, setSelectedTag] = useState<string>('planning')
+function formatRelativeDate(dateStr: string | null): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'Hoje'
+  if (diffDays === 1) return 'Ontem'
+  if (diffDays < 7) {
+    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+    return days[date.getDay()]
+  }
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
 
-  const notes = NOTES_BY_TAG[selectedTag] ?? []
+export function TagsPanel(): JSX.Element {
+  const tags = useManifestStore((s) => s.tags)
+  const notebooks = useManifestStore((s) => s.notebooks)
+  const createTag = useManifestStore((s) => s.createTag)
+
+  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newTagName, setNewTagName] = useState('')
+  const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0])
+  const nameInputRef = useRef<HTMLInputElement>(null)
+
+  // Notebook color lookup
+  const notebookColorMap = useCallback(
+    (notebookName: string | null): string => {
+      if (!notebookName) return 'var(--app-text-3)'
+      const nb = notebooks.find((n) => n.name === notebookName || n.path === notebookName)
+      return nb?.color ?? 'var(--app-text-3)'
+    },
+    [notebooks]
+  )
+
+  // Search notes when tag selection changes
+  useEffect(() => {
+    if (!selectedTag) {
+      setResults([])
+      return
+    }
+    let cancelled = false
+    setIsSearching(true)
+    searchService.query('tag:' + selectedTag).then((res) => {
+      if (!cancelled) {
+        setResults(res)
+        setIsSearching(false)
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setResults([])
+        setIsSearching(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [selectedTag])
+
+  const handleSelectTag = useCallback((name: string) => {
+    setSelectedTag((prev) => (prev === name ? null : name))
+  }, [])
+
+  const handleOpenNote = useCallback((path: string) => {
+    useEditorStore.getState().openNote(path)
+  }, [])
+
+  const handleCreateTag = useCallback(async () => {
+    const name = newTagName.trim().toLowerCase().replace(/\s+/g, '-')
+    if (!name) return
+    await createTag({ name, label: name, color: newTagColor })
+    setNewTagName('')
+    setNewTagColor(TAG_COLORS[0])
+    setShowCreateForm(false)
+  }, [newTagName, newTagColor, createTag])
+
+  // Focus input when form opens
+  useEffect(() => {
+    if (showCreateForm) nameInputRef.current?.focus()
+  }, [showCreateForm])
+
+  const maxResults = results.length
 
   return (
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--app-main)',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="flex-1 flex flex-col bg-[var(--app-main)] overflow-hidden">
       {/* Header */}
-      <div
-        style={{
-          padding: '18px 22px 14px',
-          borderBottom: '0.5px solid var(--app-border)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexShrink: 0,
-        }}
-      >
-        <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--app-text-1)', letterSpacing: '-0.3px' }}>
+      <div className="pt-[18px] px-[22px] pb-3.5 border-b-[0.5px] border-[var(--app-border)] flex items-center justify-between shrink-0">
+        <div className="text-[15px] font-medium text-[var(--app-text-1)] tracking-[-0.3px]">
           Tags
         </div>
         <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '5px 10px',
-            background: 'rgba(255,255,255,0.04)',
-            border: '0.5px solid var(--app-border-mid)',
-            borderRadius: 'var(--app-radius)',
-            fontSize: 11.5,
-            color: 'var(--app-text-2)',
-            cursor: 'pointer',
-            transition: 'background 0.12s',
-          }}
-          onMouseEnter={(e) => {
-            const el = e.currentTarget as HTMLElement
-            el.style.background = 'var(--app-hover)'
-            el.style.color = 'var(--app-text-1)'
-          }}
-          onMouseLeave={(e) => {
-            const el = e.currentTarget as HTMLElement
-            el.style.background = 'rgba(255,255,255,0.04)'
-            el.style.color = 'var(--app-text-2)'
-          }}
+          onClick={() => setShowCreateForm((v) => !v)}
+          className="flex items-center gap-[5px] py-[5px] px-2.5 bg-white/[0.04] border-[0.5px] border-[var(--app-border-mid)] rounded-[var(--app-radius)] text-[11.5px] text-[var(--app-text-2)] cursor-pointer transition-colors duration-[120ms] hover:bg-[var(--app-hover)] hover:text-[var(--app-text-1)]"
         >
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
             <line x1="5.5" y1="1" x2="5.5" y2="10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
@@ -187,64 +114,133 @@ export function TagsPanel(): JSX.Element {
       </div>
 
       {/* Content */}
-      <div
-        style={{ flex: 1, overflowY: 'auto', padding: '16px 22px' }}
-      >
-        {/* Section label */}
-        <div
-          style={{
-            fontSize: 10,
-            textTransform: 'uppercase',
-            letterSpacing: '0.07em',
-            color: 'var(--app-text-3)',
-            fontWeight: 500,
-            marginBottom: 10,
-          }}
-        >
-          Todas as tags (8)
-        </div>
-
-        {/* Tag cards grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 10,
-            marginBottom: 24,
-          }}
-        >
-          {TAGS.map((tag) => (
-            <TagCard
-              key={tag.id}
-              tag={tag}
-              selected={selectedTag === tag.id}
-              onClick={() => setSelectedTag(tag.id)}
+      <div className="flex-1 overflow-y-auto py-4 px-[22px]">
+        {/* Create tag form */}
+        {showCreateForm && (
+          <div className="mb-4 p-3 bg-white/[0.03] border-[0.5px] border-[var(--app-border-mid)] rounded-[10px]">
+            <div className="text-[10px] uppercase tracking-[0.07em] text-[var(--app-text-3)] font-medium mb-2">
+              Nova tag
+            </div>
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTag(); if (e.key === 'Escape') setShowCreateForm(false) }}
+              placeholder="Nome da tag"
+              className="w-full bg-white/[0.05] border-[0.5px] border-[var(--app-border)] rounded-[var(--app-radius)] px-2.5 py-1.5 text-[12px] text-[var(--app-text-1)] placeholder:text-[var(--app-text-3)] outline-none focus:border-[var(--app-accent)] mb-2"
             />
-          ))}
-        </div>
+            <div className="flex items-center gap-1.5 mb-2.5">
+              {TAG_COLORS.map((c) => (
+                <div
+                  key={c}
+                  onClick={() => setNewTagColor(c)}
+                  className={`w-5 h-5 rounded-full cursor-pointer transition-transform ${newTagColor === c ? 'scale-125 ring-1 ring-white/30' : 'hover:scale-110'}`}
+                  style={{ background: c }}
+                />
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCreateTag}
+                className="flex-1 py-1.5 bg-[var(--app-accent)] text-white text-[11px] font-medium rounded-[var(--app-radius)] hover:brightness-110 transition-all"
+              >
+                Criar
+              </button>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                className="flex-1 py-1.5 bg-white/[0.05] text-[var(--app-text-2)] text-[11px] font-medium rounded-[var(--app-radius)] hover:bg-white/[0.08] transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
-        {/* Notes section label */}
-        <div
-          style={{
-            fontSize: 10,
-            textTransform: 'uppercase',
-            letterSpacing: '0.07em',
-            color: 'var(--app-text-3)',
-            fontWeight: 500,
-            marginBottom: 10,
-          }}
-        >
-          Notas com # {selectedTag}
-        </div>
+        {tags.length === 0 ? (
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" className="mb-3 text-[var(--app-text-3)]">
+              <path d="M7 7h10v10H7z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+              <path d="M7 7l3-3h7l3 3" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
+            </svg>
+            <div className="text-[13px] text-[var(--app-text-2)] mb-1">Nenhuma tag criada</div>
+            <div className="text-[11px] text-[var(--app-text-3)]">
+              Clique em &quot;Nova tag&quot; para começar a organizar suas notas.
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Section label */}
+            <div className="text-[10px] uppercase tracking-[0.07em] text-[var(--app-text-3)] font-medium mb-2.5">
+              Todas as tags ({tags.length})
+            </div>
 
-        {/* Note list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {notes.map((note, i) => (
-            <NoteItem key={i} note={note} />
-          ))}
-        </div>
+            {/* Tag cards grid */}
+            <div className="grid grid-cols-3 gap-2.5 mb-6">
+              {tags.map((tag) => (
+                <TagCard
+                  key={tag.name}
+                  tag={tag}
+                  selected={selectedTag === tag.name}
+                  onClick={() => handleSelectTag(tag.name)}
+                />
+              ))}
+            </div>
+
+            {/* Notes section */}
+            {selectedTag ? (
+              <>
+                <div className="text-[10px] uppercase tracking-[0.07em] text-[var(--app-text-3)] font-medium mb-2.5">
+                  Notas com # {selectedTag} {!isSearching && `(${maxResults})`}
+                </div>
+
+                {isSearching ? (
+                  <div className="text-[11px] text-[var(--app-text-3)] py-4 text-center">
+                    Buscando…
+                  </div>
+                ) : results.length === 0 ? (
+                  <div className="text-[11px] text-[var(--app-text-3)] py-4 text-center">
+                    Nenhuma nota com essa tag.
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {results.map((r) => (
+                      <NoteItem
+                        key={r.path}
+                        title={r.title}
+                        notebook={r.notebook}
+                        notebookColor={notebookColorMap(r.notebook)}
+                        date={formatRelativeDate(r.updatedAt)}
+                        onClick={() => handleOpenNote(r.path)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-[11px] text-[var(--app-text-3)] py-4 text-center">
+                Selecione uma tag para ver as notas
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
+  )
+}
+
+function TagIcon({ color }: { color: string }): JSX.Element {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path
+        d="M2 4.5C2 3.12 3.12 2 4.5 2H7.17c.4 0 .78.16 1.06.44l3.33 3.33a1.5 1.5 0 010 2.12l-2.67 2.67a1.5 1.5 0 01-2.12 0L3.44 7.23A1.5 1.5 0 013 6.17V4.5z"
+        stroke={color}
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      <circle cx="5.5" cy="5.5" r="1" fill={color} />
+    </svg>
   )
 }
 
@@ -253,133 +249,69 @@ function TagCard({
   selected,
   onClick,
 }: {
-  tag: TagData
+  tag: Tag
   selected: boolean
   onClick: () => void
 }): JSX.Element {
   return (
     <div
       onClick={onClick}
-      style={{
-        background: selected ? 'var(--app-accent-dim)' : 'rgba(255,255,255,0.03)',
-        border: selected ? '0.5px solid rgba(124,110,245,0.35)' : '0.5px solid var(--app-border)',
-        borderRadius: 10,
-        padding: 14,
-        cursor: 'pointer',
-        transition: 'background 0.12s, border-color 0.12s, transform 0.1s',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-      onMouseEnter={(e) => {
-        if (!selected) {
-          const el = e.currentTarget as HTMLElement
-          el.style.background = 'rgba(255,255,255,0.05)'
-          el.style.borderColor = 'var(--app-border-mid)'
-          el.style.transform = 'translateY(-1px)'
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!selected) {
-          const el = e.currentTarget as HTMLElement
-          el.style.background = 'rgba(255,255,255,0.03)'
-          el.style.borderColor = 'var(--app-border)'
-          el.style.transform = 'translateY(0)'
-        }
-      }}
+      className={`rounded-[10px] p-3.5 cursor-pointer transition-all duration-[120ms] relative overflow-hidden border-[0.5px] ${
+        selected
+          ? 'bg-[var(--app-accent-dim)] border-[rgba(124,110,245,0.35)]'
+          : 'bg-white/[0.03] border-[var(--app-border)] hover:bg-white/[0.05] hover:border-[var(--app-border-mid)] hover:-translate-y-px'
+      }`}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+      <div className="flex items-center justify-between mb-2.5">
         <div
-          style={{
-            width: 30,
-            height: 30,
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: `${tag.color}1a`,
-            fontSize: 13,
-          }}
+          className="w-[30px] h-[30px] rounded-lg flex items-center justify-center text-[13px]"
+          style={{ background: tag.color + '1a' }}
         >
-          {tag.icon}
-        </div>
-        <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--app-text-1)', letterSpacing: '-0.5px' }}>
-          {tag.count}
+          <TagIcon color={tag.color} />
         </div>
       </div>
-      <div style={{ fontSize: 12, color: 'var(--app-text-2)' }}>{tag.name}</div>
-      <div
-        style={{
-          marginTop: 8,
-          height: 2,
-          borderRadius: 1,
-          background: 'rgba(255,255,255,0.07)',
-          overflow: 'hidden',
-        }}
-      >
+      <div className="text-xs text-[var(--app-text-2)]"># {tag.label}</div>
+      <div className="mt-2 h-0.5 rounded-[1px] bg-white/[0.07] overflow-hidden">
         <div
-          style={{
-            height: '100%',
-            borderRadius: 1,
-            width: `${tag.barWidth}%`,
-            background: tag.color,
-            transition: 'width 0.5s ease',
-          }}
+          className="h-full rounded-[1px]"
+          style={{ width: '100%', background: tag.color }}
         />
       </div>
     </div>
   )
 }
 
-function NoteItem({ note }: { note: NoteData }): JSX.Element {
+function NoteItem({
+  title,
+  notebook,
+  notebookColor,
+  date,
+  onClick,
+}: {
+  title: string
+  notebook: string | null
+  notebookColor: string
+  date: string
+  onClick: () => void
+}): JSX.Element {
   return (
     <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '10px 12px',
-        background: 'rgba(255,255,255,0.03)',
-        border: '0.5px solid var(--app-border)',
-        borderRadius: 'var(--app-radius)',
-        cursor: 'pointer',
-        transition: 'background 0.1s, border-color 0.1s',
-      }}
-      onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLElement
-        el.style.background = 'var(--app-hover)'
-        el.style.borderColor = 'var(--app-border-mid)'
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLElement
-        el.style.background = 'rgba(255,255,255,0.03)'
-        el.style.borderColor = 'var(--app-border)'
-      }}
+      onClick={onClick}
+      className="flex items-center gap-2.5 py-2.5 px-3 bg-white/[0.03] border-[0.5px] border-[var(--app-border)] rounded-[var(--app-radius)] cursor-pointer transition-colors duration-100 hover:bg-[var(--app-hover)] hover:border-[var(--app-border-mid)]"
     >
       <div
-        style={{
-          width: 7,
-          height: 7,
-          borderRadius: '50%',
-          background: note.notebookColor,
-          flexShrink: 0,
-        }}
+        className="w-[7px] h-[7px] rounded-full shrink-0"
+        style={{ background: notebookColor }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 12.5,
-            fontWeight: 500,
-            color: 'var(--app-text-1)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {note.title}
+      <div className="flex-1 min-w-0">
+        <div className="text-[12.5px] font-medium text-[var(--app-text-1)] truncate">
+          {title}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--app-text-3)' }}>{note.notebook}</div>
+        {notebook && (
+          <div className="text-[11px] text-[var(--app-text-3)]">{notebook}</div>
+        )}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--app-text-3)', whiteSpace: 'nowrap' }}>{note.date}</div>
+      <div className="text-[11px] text-[var(--app-text-3)] whitespace-nowrap">{date}</div>
     </div>
   )
 }

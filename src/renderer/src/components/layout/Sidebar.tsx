@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useManifestStore } from '../../stores/manifest.store'
 import { useNotesStore } from '../../stores/notes.store'
 import { useAuthStore } from '../../stores/auth.store'
@@ -6,9 +6,11 @@ import { useAuthStore } from '../../stores/auth.store'
 const NOTEBOOK_COLORS = ['#7C6EF5', '#3FD68F', '#F5A623', '#F472B6', '#60A5FA', '#34D399', '#FB923C']
 
 export function Sidebar(): JSX.Element {
-  const { notebooks, tags, activeNotebook, setView, isLoaded, load } = useManifestStore()
+  const { notebooks, tags, activeNotebook, setView, isLoaded, load, createNotebook } = useManifestStore()
   const { loadNotes } = useNotesStore()
   const { profile } = useAuthStore()
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newNotebookName, setNewNotebookName] = useState('')
 
   useEffect(() => {
     if (!isLoaded) {
@@ -29,82 +31,88 @@ export function Sidebar(): JSX.Element {
     loadNotes(notebookId)
   }
 
+  function toggleCreateForm(): void {
+    setShowCreateForm((v) => !v)
+    setNewNotebookName('')
+  }
+
+  async function handleCreateNotebook(): Promise<void> {
+    const name = newNotebookName.trim()
+    if (!name) {
+      setShowCreateForm(false)
+      return
+    }
+    const nb = await createNotebook(name)
+    setShowCreateForm(false)
+    setNewNotebookName('')
+    setView('notebook', nb.id)
+    loadNotes(nb.id)
+  }
+
   const workspaceName = profile?.name || profile?.login || 'Workspace'
 
   return (
     <nav
-      className="flex flex-col shrink-0 overflow-hidden"
-      style={{
-        width: 220,
-        background: 'var(--app-sidebar)',
-        borderRight: '0.5px solid var(--app-border)',
-      }}
+      className="flex flex-col shrink-0 overflow-hidden w-[220px] bg-[var(--app-sidebar)] border-r-[0.5px] border-r-[var(--app-border)]"
     >
       {/* Header */}
       <div
-        className="shrink-0"
-        style={{ padding: '14px 14px 10px', borderBottom: '0.5px solid var(--app-border)' }}
+        className="shrink-0 pt-[14px] px-[14px] pb-[10px] border-b-[0.5px] border-b-[var(--app-border)]"
       >
         <div
-          style={{
-            fontSize: 11,
-            fontWeight: 500,
-            color: 'var(--app-text-2)',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            marginBottom: 10,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
+          className="text-[11px] font-medium text-[var(--app-text-2)] tracking-[0.06em] uppercase overflow-hidden text-ellipsis whitespace-nowrap"
         >
           {workspaceName}
-        </div>
-        {/* Search bar (decorative for now) */}
-        <div
-          className="flex items-center cursor-text"
-          style={{
-            gap: 6,
-            background: 'rgba(255,255,255,0.04)',
-            border: '0.5px solid var(--app-border-mid)',
-            borderRadius: 'var(--app-radius)',
-            padding: '5px 8px',
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ opacity: 0.3, flexShrink: 0 }}>
-            <circle cx="5" cy="5" r="3.5" stroke="currentColor" strokeWidth="1.3"/>
-            <line x1="7.5" y1="7.5" x2="10.5" y2="10.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-          </svg>
-          <span style={{ fontSize: 12, color: 'var(--app-text-3)' }}>Buscar notas...</span>
         </div>
       </div>
 
       {/* Body */}
       <div className="flex-1 overflow-auto">
         {/* Notebooks section */}
-        <div style={{ padding: '10px 8px 4px' }}>
-          <div
-            style={{
-              fontSize: 10.5,
-              fontWeight: 500,
-              color: 'var(--app-text-3)',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              padding: '0 6px',
-              marginBottom: 2,
-            }}
-          >
-            Notebooks
+        <div className="pt-[10px] px-[8px] pb-[4px]">
+          <div className="group flex items-center justify-between px-[6px] py-0 mb-[2px]">
+            <div className="text-[10.5px] font-medium text-[var(--app-text-3)] tracking-[0.05em] uppercase">
+              Notebooks
+            </div>
+            <button
+              onClick={toggleCreateForm}
+              className="opacity-0 group-hover:opacity-100 transition-opacity w-4 h-4 flex items-center justify-center rounded text-[var(--app-text-3)] hover:text-[var(--app-text-1)] hover:bg-[var(--app-hover)] cursor-pointer bg-transparent border-none"
+              title="Novo notebook"
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
           </div>
 
+          {showCreateForm && (
+            <div className="px-[6px] mb-1">
+              <input
+                autoFocus
+                value={newNotebookName}
+                onChange={(e) => setNewNotebookName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateNotebook()
+                  if (e.key === 'Escape') {
+                    setShowCreateForm(false)
+                    setNewNotebookName('')
+                  }
+                }}
+                onBlur={handleCreateNotebook}
+                placeholder="Nome do notebook"
+                className="w-full bg-white/5 border-[0.5px] border-[var(--app-accent)] rounded-[var(--app-radius)] py-[4px] px-[8px] text-[12px] text-[var(--app-text-1)] placeholder:text-[var(--app-text-3)] outline-none"
+              />
+            </div>
+          )}
+
           {!isLoaded && (
-            <div style={{ padding: '8px 8px', fontSize: 12, color: 'var(--app-text-3)' }}>
+            <div className="p-[8px] text-[12px] text-[var(--app-text-3)]">
               Carregando...
             </div>
           )}
 
           {isLoaded && notebooks.length === 0 && (
-            <div style={{ padding: '8px 8px', fontSize: 12, color: 'var(--app-text-3)' }}>
+            <div className="p-[8px] text-[12px] text-[var(--app-text-3)]">
               Nenhum notebook
             </div>
           )}
@@ -115,34 +123,14 @@ export function Sidebar(): JSX.Element {
             return (
               <div
                 key={nb.id}
-                className="flex items-center cursor-pointer"
+                className={`flex items-center cursor-pointer gap-[8px] py-[6px] px-[8px] rounded-[var(--app-radius)] text-[12.5px] transition-colors duration-[120ms] ${isActive ? 'bg-[var(--app-accent-dim)] text-[var(--app-text-1)]' : 'text-[var(--app-text-2)] hover:bg-[var(--app-hover)] hover:text-[var(--app-text-1)]'}`}
                 onClick={() => handleNotebookClick(nb.id)}
-                style={{
-                  gap: 8,
-                  padding: '6px 8px',
-                  borderRadius: 'var(--app-radius)',
-                  background: isActive ? 'var(--app-accent-dim)' : 'transparent',
-                  color: isActive ? 'var(--app-text-1)' : 'var(--app-text-2)',
-                  fontSize: 12.5,
-                  transition: 'background 0.12s',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    ;(e.currentTarget as HTMLElement).style.background = 'var(--app-hover)'
-                    ;(e.currentTarget as HTMLElement).style.color = 'var(--app-text-1)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    ;(e.currentTarget as HTMLElement).style.background = 'transparent'
-                    ;(e.currentTarget as HTMLElement).style.color = 'var(--app-text-2)'
-                  }
-                }}
               >
                 <span
-                  style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }}
+                  className="w-[7px] h-[7px] rounded-full shrink-0"
+                  style={{ background: color }}
                 />
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
                   {nb.name}
                 </span>
               </div>
@@ -153,22 +141,14 @@ export function Sidebar(): JSX.Element {
         {/* Tags section */}
         {tags.length > 0 && (
           <>
-            <div style={{ padding: '10px 8px 4px' }}>
+            <div className="pt-[10px] px-[8px] pb-[4px]">
               <div
-                style={{
-                  fontSize: 10.5,
-                  fontWeight: 500,
-                  color: 'var(--app-text-3)',
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase',
-                  padding: '0 6px',
-                  marginBottom: 2,
-                }}
+                className="text-[10.5px] font-medium text-[var(--app-text-3)] tracking-[0.05em] uppercase px-[6px] py-0 mb-[2px]"
               >
                 Tags
               </div>
             </div>
-            <div style={{ padding: '0 8px 8px' }}>
+            <div className="px-[8px] pb-[8px]">
               {tags.map((tag) => (
                 <TagPill key={tag.name} label={`# ${tag.label || tag.name}`} color={tag.color} />
               ))}
@@ -183,17 +163,12 @@ export function Sidebar(): JSX.Element {
 function TagPill({ label, color, active }: { label: string; color?: string; active?: boolean }): JSX.Element {
   return (
     <span
-      className="inline-flex items-center cursor-pointer"
-      style={{
-        padding: '3px 8px',
-        background: active ? 'var(--app-accent-dim)' : 'var(--app-tag-bg)',
-        borderRadius: 100,
-        fontSize: 11,
-        color: active ? (color || 'var(--app-accent)') : 'var(--app-tag-text)',
-        margin: '2px 2px',
-        border: active ? '0.5px solid rgba(124,110,245,0.3)' : '0.5px solid var(--app-border)',
-        transition: 'background 0.12s, color 0.12s',
-      }}
+      className={`inline-flex items-center cursor-pointer py-[3px] px-[8px] rounded-full text-[11px] m-[2px] border-[0.5px] transition-colors duration-[120ms] ${
+        active
+          ? `bg-[var(--app-accent-dim)] border-[rgba(124,110,245,0.3)]${!color ? ' text-[var(--app-accent)]' : ''}`
+          : 'bg-[var(--app-tag-bg)] text-[var(--app-tag-text)] border-[var(--app-border)]'
+      }`}
+      style={active && color ? { color } : undefined}
     >
       {label}
     </span>

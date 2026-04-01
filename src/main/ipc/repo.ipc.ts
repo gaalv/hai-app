@@ -151,54 +151,81 @@ export function registerRepoHandlers(): void {
     const profile = await profileRes.json() as { login: string }
     const owner = profile.login
 
-    // Create the repo
-    const createRes = await fetch('https://api.github.com/user/repos', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name: repoName,
-        private: true,
-        description: 'Hai notes workspace',
-        auto_init: false
-      })
-    })
-
-    if (!createRes.ok) {
-      const err = await createRes.json() as { message: string }
-      throw new Error(`Erro ao criar repositório: ${err.message}`)
-    }
-
     const localPath = getLocalRepoPath(owner, repoName)
-    await fs.mkdir(localPath, { recursive: true })
-
     const cloneUrl = `https://github.com/${owner}/${repoName}.git`
 
-    // Init local git repo
-    await git.init({ fs: { promises: fs }, dir: localPath, defaultBranch: 'main' })
-    await git.addRemote({ fs: { promises: fs }, dir: localPath, remote: 'origin', url: cloneUrl })
-
-    // Create workspace structure
-    await ensureHaiManifest(localPath)
-
-    // Initial commit + push
-    await git.add({ fs: { promises: fs }, dir: localPath, filepath: '.' })
-    await git.commit({
-      fs: { promises: fs },
-      dir: localPath,
-      message: 'chore: init hai workspace',
-      author: { name: 'Hai', email: 'hai@local' }
+    // Check if the remote repo already exists (from a previous partial attempt)
+    let repoExists = false
+    const checkRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' }
     })
-    await git.push({
+    if (checkRes.ok) {
+      repoExists = true
+    }
+
+    if (!repoExists) {
+      // Create the repo with auto_init so GitHub sets up the default branch
+      const createRes = await fetch('https://api.github.com/user/repos', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: repoName,
+          private: true,
+          description: 'Hai notes workspace',
+          auto_init: true
+        })
+      })
+
+      if (!createRes.ok) {
+        const err = await createRes.json() as { message: string; errors?: Array<{ message: string }> }
+        const detail = err.errors?.[0]?.message ?? err.message
+        throw new Error(`Erro ao criar repositório: ${detail}`)
+      }
+    }
+
+    // Prepare local directory — wipe stale state
+    await fs.rm(localPath, { recursive: true, force: true }).catch(() => {})
+    await fs.mkdir(localPath, { recursive: true })
+
+    // Clone the remote (either just created with auto_init or from previous attempt)
+    await git.clone({
       fs: { promises: fs },
       http,
       dir: localPath,
-      remote: 'origin',
-      onAuth: onAuth(token)
+      url: cloneUrl,
+      onAuth: onAuth(token),
+      singleBranch: true,
+      depth: 10
     })
+
+    // Create workspace structure (no-op if already present)
+    await ensureHaiManifest(localPath)
+
+    // Stage everything and commit if there are changes
+    await git.add({ fs: { promises: fs }, dir: localPath, filepath: '.' })
+    const status = await git.statusMatrix({ fs: { promises: fs }, dir: localPath })
+    const hasChanges = status.some(([, head, workdir, stage]) => head !== 1 || workdir !== 1 || stage !== 1)
+
+    if (hasChanges) {
+      await git.commit({
+        fs: { promises: fs },
+        dir: localPath,
+        message: 'chore: init hai workspace',
+        author: { name: 'Hai', email: 'hai@local' }
+      })
+      await git.push({
+        fs: { promises: fs },
+        http,
+        dir: localPath,
+        remote: 'origin',
+        ref: 'main',
+        onAuth: onAuth(token)
+      })
+    }
 
     store.set('vaultConfig', { path: localPath, name: repoName, configuredAt: new Date().toISOString() })
     store.set('syncConfig', { repoUrl: cloneUrl, configuredAt: new Date().toISOString() })

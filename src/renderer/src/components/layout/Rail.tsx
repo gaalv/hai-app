@@ -1,4 +1,5 @@
 import { useAuthStore } from '../../stores/auth.store'
+import { HaiIcon } from '../ui/HaiIcon'
 
 interface RailProps {
   activeTab: string
@@ -11,27 +12,11 @@ export function Rail({ activeTab, onTabChange, onAvatarClick }: RailProps): JSX.
   const avatarInitial = (profile?.name || profile?.login || 'U')[0].toUpperCase()
   return (
     <nav
-      className="flex flex-col items-center shrink-0"
-      style={{
-        width: 52,
-        background: 'var(--app-rail)',
-        borderRight: '0.5px solid var(--app-border)',
-        padding: '14px 0',
-        gap: 2,
-      }}
+      className="flex flex-col items-center shrink-0 w-[52px] bg-[var(--app-rail)] border-r-[0.5px] border-r-[var(--app-border)] py-[14px] px-0 gap-[2px] titlebar-no-drag"
     >
       {/* Logo */}
-      <div
-        className="flex items-center justify-center mb-[18px] text-[13px] font-medium text-white"
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          background: 'var(--app-accent)',
-          letterSpacing: '-0.5px',
-        }}
-      >
-        N
+      <div className="mb-[18px]">
+        <HaiIcon size={28} />
       </div>
 
       {/* Notebooks */}
@@ -72,17 +57,6 @@ export function Rail({ activeTab, onTabChange, onAvatarClick }: RailProps): JSX.
         </svg>
       </RailBtn>
 
-      {/* Favorites */}
-      <RailBtn
-        active={activeTab === 'pins'}
-        title="Favoritos"
-        onClick={() => onTabChange('pins')}
-      >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M7.5 1.5l1.7 3.5 3.8.55-2.75 2.7.65 3.8L7.5 10.4l-3.4 1.65.65-3.8L2 5.55l3.8-.55z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/>
-        </svg>
-      </RailBtn>
-
       {/* Spacer */}
       <div className="flex-1" />
 
@@ -96,14 +70,7 @@ export function Rail({ activeTab, onTabChange, onAvatarClick }: RailProps): JSX.
 
       {/* Avatar */}
       <div
-        className="flex items-center justify-center text-[10px] font-medium text-white mt-[6px] cursor-pointer"
-        style={{
-          width: 26,
-          height: 26,
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, #7C6EF5 0%, #C084FC 100%)',
-          border: '1.5px solid rgba(124,110,245,0.4)',
-        }}
+        className="flex items-center justify-center text-[10px] font-medium text-white mt-[6px] cursor-pointer w-[26px] h-[26px] rounded-full bg-gradient-to-br from-[#7C6EF5] to-[#C084FC] border-[1.5px] border-[rgba(124,110,245,0.4)]"
         onClick={onAvatarClick}
         title={`${profile?.login || 'Usuário'} · Clique para sair`}
       >
@@ -111,7 +78,7 @@ export function Rail({ activeTab, onTabChange, onAvatarClick }: RailProps): JSX.
           <img
             src={profile.avatar_url}
             alt={profile.login}
-            style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+            className="w-full h-full rounded-full object-cover"
           />
         ) : avatarInitial}
       </div>
@@ -132,23 +99,11 @@ function RailBtn({
 }): JSX.Element {
   return (
     <div
-      className="flex items-center justify-center cursor-pointer transition-colors duration-150"
+      className={`flex items-center justify-center cursor-pointer transition-colors duration-150 w-9 h-9 rounded-[var(--app-radius)] ${active ? 'bg-[var(--app-accent-dim)]' : 'hover:bg-[var(--app-hover)]'}`}
       title={title}
       onClick={onClick}
-      style={{
-        width: 36,
-        height: 36,
-        borderRadius: 'var(--app-radius)',
-        background: active ? 'var(--app-accent-dim)' : 'transparent',
-      }}
-      onMouseEnter={(e) => {
-        if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--app-hover)'
-      }}
-      onMouseLeave={(e) => {
-        if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'
-      }}
     >
-      <span style={{ opacity: active ? 1 : 0.45, color: 'var(--app-text-1)' }}>
+      <span className={`text-[var(--app-text-1)] ${active ? 'opacity-100' : 'opacity-45'}`}>
         {children}
       </span>
     </div>

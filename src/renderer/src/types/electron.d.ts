@@ -77,6 +77,7 @@ export interface ElectronAPI {
     >
     setClientId: (clientId: string) => Promise<void>
     logout: () => Promise<void>
+    logoutFull: () => Promise<void>
   }
   search: {
     index: () => Promise<number>
@@ -99,6 +100,8 @@ export interface ElectronAPI {
   app: {
     getMode: () => Promise<'local' | 'sync' | null>
     setMode: (mode: 'local' | 'sync') => Promise<void>
+    getVersion: () => Promise<string>
+    quit: () => Promise<void>
   }
   onFileTreeChanged: (callback: () => void) => void
   onSyncAutoSynced: (callback: (data: { timestamp: string; files: number }) => void) => void

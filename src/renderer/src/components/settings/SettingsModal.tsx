@@ -235,7 +235,13 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                     <button
                       key={min}
                       className="px-3 py-1.5 rounded text-[11px] font-sans border border-[var(--border-2)] text-[var(--text-2)] hover:border-[var(--accent)] hover:text-[var(--text)] cursor-pointer transition-colors"
-                      onClick={() => window.electronAPI.sync.setInterval(min)}
+                      onClick={() => {
+                        if (min === 0) {
+                          window.electronAPI.sync.stopAutoSync()
+                        } else {
+                          window.electronAPI.sync.setAutoSync(min)
+                        }
+                      }}
                     >
                       {min === 0 ? 'Manual' : `${min} min`}
                     </button>
@@ -275,7 +281,8 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                 <button
                   className="px-3 py-1.5 bg-red-400/10 text-red-400 border border-red-400/20 rounded text-[11px] font-sans cursor-pointer hover:bg-red-400/20 transition-colors"
                   onClick={async () => {
-                    await logout()
+                    await window.electronAPI.auth.logoutFull()
+                    logout()
                     onClose()
                   }}
                 >

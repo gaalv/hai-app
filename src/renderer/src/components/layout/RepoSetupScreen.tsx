@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { HaiIcon } from '../ui/HaiIcon'
 
 type Mode = 'choose' | 'connect' | 'create'
 
@@ -42,81 +43,39 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: 'var(--app-main)',
-        position: 'relative',
-        overflow: 'hidden',
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        WebkitFontSmoothing: 'antialiased',
-        userSelect: 'none',
-      }}
-    >
+    <div className="flex items-center justify-center min-h-screen bg-[var(--app-main)] relative overflow-hidden font-[var(--font-sans)] text-[13px] antialiased select-none titlebar-drag">
       {/* Radial gradient */}
       <div
+        className="absolute inset-0 pointer-events-none"
         style={{
-          position: 'absolute',
-          inset: 0,
           background: 'radial-gradient(ellipse 60% 50% at 50% 30%, rgba(124,110,245,0.12) 0%, transparent 70%)',
-          pointerEvents: 'none',
         }}
       />
 
-      <div
-        style={{
-          position: 'relative',
-          zIndex: 2,
-          width: 400,
-          background: 'rgba(15,15,20,0.95)',
-          border: '0.5px solid var(--app-border-mid)',
-          borderRadius: 16,
-          padding: '36px 32px 32px',
-          backdropFilter: 'blur(20px)',
-        }}
-      >
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 9,
-              background: 'var(--app-accent)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
-              fontWeight: 500,
-              color: '#fff',
-            }}
-          >
-            N
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--app-text-1)', letterSpacing: '-0.3px' }}>
-            Notas
+      <div className="relative z-[2] w-[400px] bg-[rgba(15,15,20,0.95)] border-[0.5px] border-[var(--app-border-mid)] rounded-2xl px-8 pt-9 pb-8 backdrop-blur-[20px] titlebar-no-drag">
+        {/* Logo — centered */}
+        <div className="flex flex-col items-center mb-7">
+          <HaiIcon size={44} className="mb-2.5" />
+          <div className="text-[15px] font-medium text-[var(--app-text-1)] tracking-[-0.3px]">
+            Hai
           </div>
         </div>
 
         {mode === 'choose' && (
           <>
-            <div style={{ fontSize: 20, fontWeight: 500, color: 'var(--app-text-1)', letterSpacing: '-0.5px', marginBottom: 6 }}>
+            <div className="text-[20px] font-medium text-[var(--app-text-1)] tracking-[-0.5px] mb-[6px]">
               Configurar workspace
             </div>
-            <div style={{ fontSize: 13, color: 'var(--app-text-2)', marginBottom: 28, lineHeight: 1.6 }}>
+            <div className="text-[13px] text-[var(--app-text-2)] mb-7 leading-relaxed">
               Suas notas são armazenadas num repositório GitHub privado. Conecte um repositório existente ou crie um novo.
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="flex flex-col gap-[10px]">
               <OptionCard
                 title="Conectar repositório existente"
                 description="Use um repositório GitHub que você já tem"
                 icon={
-                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" style={{ opacity: 0.7 }}>
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" className="opacity-70">
                     <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
                   </svg>
                 }
@@ -126,7 +85,7 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
                 title="Criar novo repositório"
                 description="Cria um repositório privado no seu perfil"
                 icon={
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ opacity: 0.7 }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="opacity-70">
                     <path d="M8 1v14M1 8h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                   </svg>
                 }
@@ -140,7 +99,7 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
           <>
             <button
               onClick={() => { setMode('choose'); setError(null) }}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, color: 'var(--app-text-3)', fontSize: 12, marginBottom: 20 }}
+              className="bg-transparent border-none p-0 cursor-pointer flex items-center gap-[5px] text-[var(--app-text-3)] text-[12px] mb-5"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path d="M8 2L4 6l4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
@@ -148,15 +107,15 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
               Voltar
             </button>
 
-            <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--app-text-1)', letterSpacing: '-0.5px', marginBottom: 6 }}>
+            <div className="text-[18px] font-medium text-[var(--app-text-1)] tracking-[-0.5px] mb-[6px]">
               Conectar repositório
             </div>
-            <div style={{ fontSize: 13, color: 'var(--app-text-2)', marginBottom: 20 }}>
+            <div className="text-[13px] text-[var(--app-text-2)] mb-5">
               Cole a URL do repositório GitHub onde suas notas serão armazenadas.
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--app-text-3)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 6 }}>
+            <div className="mb-4">
+              <div className="text-[11px] font-medium text-[var(--app-text-3)] tracking-[0.04em] uppercase mb-[6px]">
                 URL do repositório
               </div>
               <input
@@ -166,26 +125,7 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
                 onChange={(e) => setRepoUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleConnect() }}
                 autoFocus
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '0.5px solid var(--app-border-mid)',
-                  borderRadius: 'var(--app-radius)',
-                  padding: '10px 12px',
-                  fontSize: 13,
-                  color: 'var(--app-text-1)',
-                  fontFamily: 'var(--font-sans)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(124,110,245,0.5)'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,110,245,0.1)'
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--app-border-mid)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
+                className="w-full bg-white/[0.04] border-[0.5px] border-[var(--app-border-mid)] rounded-[var(--app-radius)] py-[10px] px-3 text-[13px] text-[var(--app-text-1)] font-[var(--font-sans)] outline-none focus:border-[rgba(124,110,245,0.5)] focus:shadow-[0_0_0_3px_rgba(124,110,245,0.1)]"
               />
             </div>
 
@@ -201,7 +141,7 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
           <>
             <button
               onClick={() => { setMode('choose'); setError(null) }}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, color: 'var(--app-text-3)', fontSize: 12, marginBottom: 20 }}
+              className="bg-transparent border-none p-0 cursor-pointer flex items-center gap-[5px] text-[var(--app-text-3)] text-[12px] mb-5"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path d="M8 2L4 6l4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
@@ -209,15 +149,15 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
               Voltar
             </button>
 
-            <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--app-text-1)', letterSpacing: '-0.5px', marginBottom: 6 }}>
+            <div className="text-[18px] font-medium text-[var(--app-text-1)] tracking-[-0.5px] mb-[6px]">
               Novo repositório
             </div>
-            <div style={{ fontSize: 13, color: 'var(--app-text-2)', marginBottom: 20 }}>
+            <div className="text-[13px] text-[var(--app-text-2)] mb-5">
               Um repositório privado será criado no seu perfil GitHub.
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 11, fontWeight: 500, color: 'var(--app-text-3)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 6 }}>
+            <div className="mb-4">
+              <div className="text-[11px] font-medium text-[var(--app-text-3)] tracking-[0.04em] uppercase mb-[6px]">
                 Nome do repositório
               </div>
               <input
@@ -227,26 +167,7 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
                 onChange={(e) => setRepoName(e.target.value.replace(/\s+/g, '-').toLowerCase())}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
                 autoFocus
-                style={{
-                  width: '100%',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '0.5px solid var(--app-border-mid)',
-                  borderRadius: 'var(--app-radius)',
-                  padding: '10px 12px',
-                  fontSize: 13,
-                  color: 'var(--app-text-1)',
-                  fontFamily: 'var(--font-sans)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(124,110,245,0.5)'
-                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,110,245,0.1)'
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--app-border-mid)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
+                className="w-full bg-white/[0.04] border-[0.5px] border-[var(--app-border-mid)] rounded-[var(--app-radius)] py-[10px] px-3 text-[13px] text-[var(--app-text-1)] font-[var(--font-sans)] outline-none focus:border-[rgba(124,110,245,0.5)] focus:shadow-[0_0_0_3px_rgba(124,110,245,0.1)]"
               />
             </div>
 
@@ -276,34 +197,14 @@ function OptionCard({
   return (
     <div
       onClick={onClick}
-      style={{
-        padding: '14px 16px',
-        background: 'rgba(255,255,255,0.03)',
-        border: '0.5px solid var(--app-border-mid)',
-        borderRadius: 10,
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 14,
-        transition: 'background 0.12s, border-color 0.12s',
-      }}
-      onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLElement
-        el.style.background = 'rgba(124,110,245,0.08)'
-        el.style.borderColor = 'rgba(124,110,245,0.3)'
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLElement
-        el.style.background = 'rgba(255,255,255,0.03)'
-        el.style.borderColor = 'var(--app-border-mid)'
-      }}
+      className="py-[14px] px-4 bg-white/[0.03] border-[0.5px] border-[var(--app-border-mid)] rounded-[10px] cursor-pointer flex items-center gap-[14px] transition-colors duration-[120ms] hover:bg-[rgba(124,110,245,0.08)] hover:border-[rgba(124,110,245,0.3)]"
     >
-      <div style={{ color: 'var(--app-text-1)', flexShrink: 0 }}>{icon}</div>
+      <div className="text-[var(--app-text-1)] shrink-0">{icon}</div>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--app-text-1)', marginBottom: 2 }}>{title}</div>
-        <div style={{ fontSize: 12, color: 'var(--app-text-3)' }}>{description}</div>
+        <div className="text-[13px] font-medium text-[var(--app-text-1)] mb-[2px]">{title}</div>
+        <div className="text-[12px] text-[var(--app-text-3)]">{description}</div>
       </div>
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ marginLeft: 'auto', flexShrink: 0, opacity: 0.3 }}>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="ml-auto shrink-0 opacity-30">
         <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     </div>
@@ -325,38 +226,10 @@ function ActionBtn({
     <button
       onClick={onClick}
       disabled={disabled}
-      style={{
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 7,
-        padding: 11,
-        background: disabled ? 'rgba(124,110,245,0.4)' : 'var(--app-accent)',
-        border: 'none',
-        borderRadius: 'var(--app-radius)',
-        fontSize: 13,
-        fontWeight: 500,
-        color: '#fff',
-        fontFamily: 'var(--font-sans)',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        transition: 'opacity 0.15s',
-      }}
-      onMouseEnter={(e) => { if (!disabled) (e.currentTarget as HTMLElement).style.opacity = '0.88' }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1' }}
+      className={`w-full flex items-center justify-center gap-[7px] p-[11px] border-none rounded-[var(--app-radius)] text-[13px] font-medium text-white font-[var(--font-sans)] transition-opacity duration-150 hover:opacity-[0.88] ${disabled ? 'bg-[rgba(124,110,245,0.4)] cursor-not-allowed' : 'bg-[var(--app-accent)] cursor-pointer'}`}
     >
       {loading && (
-        <div
-          style={{
-            width: 12,
-            height: 12,
-            borderRadius: '50%',
-            border: '1.5px solid rgba(255,255,255,0.2)',
-            borderTopColor: '#fff',
-            animation: 'spin 0.7s linear infinite',
-            flexShrink: 0,
-          }}
-        />
+        <div className="w-3 h-3 rounded-full border-[1.5px] border-white/20 border-t-white animate-spin shrink-0" />
       )}
       {children}
     </button>
@@ -365,18 +238,7 @@ function ActionBtn({
 
 function ErrorMsg({ message }: { message: string }): JSX.Element {
   return (
-    <div
-      style={{
-        marginBottom: 14,
-        padding: '10px 12px',
-        background: 'rgba(248,113,113,0.08)',
-        border: '0.5px solid rgba(248,113,113,0.3)',
-        borderRadius: 'var(--app-radius)',
-        fontSize: 12,
-        color: '#F87171',
-        lineHeight: 1.5,
-      }}
-    >
+    <div className="mb-[14px] py-[10px] px-3 bg-[rgba(248,113,113,0.08)] border-[0.5px] border-[rgba(248,113,113,0.3)] rounded-[var(--app-radius)] text-[12px] text-[#F87171] leading-normal">
       {message}
     </div>
   )

@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, app } from 'electron'
 import store from '../store'
 
 export function registerAppHandlers(): void {
@@ -8,5 +8,13 @@ export function registerAppHandlers(): void {
 
   ipcMain.handle('app:set-mode', (_e, mode: 'local' | 'sync') => {
     store.set('mode', mode)
+  })
+
+  ipcMain.handle('app:get-version', () => {
+    return app.getVersion()
+  })
+
+  ipcMain.handle('app:quit', () => {
+    app.quit()
   })
 }

@@ -66,7 +66,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deviceFlowStart: () => ipcRenderer.invoke('auth:device-flow-start'),
     deviceFlowPoll: (deviceCode: string) => ipcRenderer.invoke('auth:device-flow-poll', deviceCode),
     setClientId: (clientId: string) => ipcRenderer.invoke('auth:set-client-id', clientId),
-    logout: () => ipcRenderer.invoke('auth:logout')
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    logoutFull: () => ipcRenderer.invoke('auth:logout-full')
   },
 
   search: {
@@ -93,7 +94,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   app: {
     getMode: () => ipcRenderer.invoke('app:get-mode'),
-    setMode: (mode: 'local' | 'sync') => ipcRenderer.invoke('app:set-mode', mode)
+    setMode: (mode: 'local' | 'sync') => ipcRenderer.invoke('app:set-mode', mode),
+    getVersion: () => ipcRenderer.invoke('app:get-version'),
+    quit: () => ipcRenderer.invoke('app:quit')
   },
 
   // Events
