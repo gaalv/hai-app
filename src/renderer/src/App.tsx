@@ -43,6 +43,11 @@ function App(): JSX.Element {
         }
 
         setScreen('app')
+
+        // Background pull to sync latest notes from GitHub
+        window.electronAPI.sync.pull().catch(() => {
+          // Silently ignore pull errors on startup
+        })
       } catch {
         setScreen('login')
       }

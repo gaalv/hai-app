@@ -25,9 +25,14 @@ function extractTags(frontmatter: string): string[] {
   return match[1].split(',').map((t) => t.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
 }
 
-function formatDateTime(isoString: string): string {
+function extractDate(frontmatter: string): string {
+  const match = frontmatter.match(/^created:\s*['"]?(.+?)['"]?\s*$/m)
+  if (!match) return ''
+  const raw = match[1]
   try {
-    return new Date(isoString).toLocaleDateString('pt-BR', {
+    const d = new Date(raw)
+    if (isNaN(d.getTime())) return ''
+    return d.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -49,6 +54,18 @@ export function EditorPanel(): JSX.Element {
   const { updateNoteTitle } = useNotesStore()
   const saveTimer = useRef<NodeJS.Timeout | null>(null)
   const titleRef = useRef<HTMLDivElement>(null)
+  const activeNoteRef = useRef(activeNote)
+  const lastNotePathRef = useRef<string | null>(null)
+  activeNoteRef.current = activeNote
+
+  // Set title text only when switching notes (uncontrolled contentEditable)
+  useEffect(() => {
+    if (!activeNote || !titleRef.current) return
+    if (activeNote.path === lastNotePathRef.current) return
+    lastNotePathRef.current = activeNote.path
+    const { frontmatter } = splitFrontmatter(activeNote.content)
+    titleRef.current.textContent = extractTitle(frontmatter)
+  }, [activeNote?.path])
 
   // Auto-save after 1.5s of inactivity
   useEffect(() => {
@@ -62,23 +79,23 @@ export function EditorPanel(): JSX.Element {
   }, [isDirty, activeNote?.content])
 
   const handleBodyChange = useCallback((newBody: string) => {
-    if (!activeNote) return
-    const { frontmatter } = splitFrontmatter(activeNote.content)
+    const note = activeNoteRef.current
+    if (!note) return
+    const { frontmatter } = splitFrontmatter(note.content)
     const newContent = `---\n${frontmatter}\n---\n\n${newBody}`
     setContent(newContent)
-  }, [activeNote, setContent])
+  }, [setContent])
 
   const handleTitleInput = useCallback((e: React.FormEvent<HTMLDivElement>) => {
-    if (!activeNote) return
+    const note = activeNoteRef.current
+    if (!note) return
     const newTitle = (e.currentTarget.textContent || '').trim()
-    const { frontmatter, body } = splitFrontmatter(activeNote.content)
-
-    // Update title in frontmatter
+    const { frontmatter, body } = splitFrontmatter(note.content)
     const updatedFrontmatter = frontmatter.replace(/^title:.*$/m, `title: "${newTitle}"`)
     const newContent = `---\n${updatedFrontmatter}\n---\n\n${body}`
     setContent(newContent)
-    updateNoteTitle(activeNote.path, newTitle)
-  }, [activeNote, setContent, updateNoteTitle])
+    updateNoteTitle(note.path, newTitle)
+  }, [setContent, updateNoteTitle])
 
   if (!activeNote) {
     return (
@@ -99,12 +116,8 @@ export function EditorPanel(): JSX.Element {
   }
 
   const { frontmatter, body } = splitFrontmatter(activeNote.content)
-  const title = extractTitle(frontmatter)
   const tags = extractTags(frontmatter)
-
-  // Extract created date from frontmatter
-  const createdMatch = frontmatter.match(/^created:\s*(.+)$/m)
-  const createdDate = createdMatch ? formatDateTime(createdMatch[1].trim()) : ''
+  const createdDate = extractDate(frontmatter)
   const readTime = estimateReadTime(body)
 
   const saveStatus = isSaving ? 'Salvando...' : isDirty ? 'Não salvo' : 'Salvo automaticamente'
@@ -126,7 +139,7 @@ export function EditorPanel(): JSX.Element {
             <rect x="7" y="7" width="4" height="4" rx="0.8" fill="currentColor" fillOpacity="0.4"/>
           </svg>
           <span className="text-[var(--app-text-2)]">
-            {title || 'Sem título'}
+            {extractTitle(frontmatter) || 'Sem título'}
           </span>
         </div>
 
@@ -172,17 +185,15 @@ export function EditorPanel(): JSX.Element {
             </div>
           )}
 
-          {/* Title — editable */}
+          {/* Title — uncontrolled contentEditable, set via ref */}
           <div
             ref={titleRef}
             contentEditable
             suppressContentEditableWarning
             onInput={handleTitleInput}
             data-placeholder="Sem título"
-            className="text-[26px] font-medium text-[var(--app-text-1)] leading-[1.25] mb-[6px] tracking-[-0.6px] outline-none cursor-text min-h-8"
-          >
-            {title}
-          </div>
+            className="text-[26px] font-medium text-[var(--app-text-1)] leading-[1.25] mb-[6px] tracking-[-0.6px] outline-none cursor-text min-h-8 empty:before:content-[attr(data-placeholder)] empty:before:text-[var(--app-text-3)]"
+          />
 
           {/* Date row */}
           <div
