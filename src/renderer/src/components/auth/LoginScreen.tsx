@@ -1,34 +1,81 @@
 import { useState } from 'react'
-import { useAuthStore } from '../../stores/auth.store'
+import { authService } from '../../services/auth'
 
-export function LoginScreen(): JSX.Element {
-  const setAuth = useAuthStore((s) => s.setAuth)
+interface Props {
+  onSuccess?: () => void
+  onSkip?: () => void
+}
+
+export function LoginScreen({ onSuccess, onSkip }: Props): JSX.Element {
   const [step, setStep] = useState<'idle' | 'polling' | 'setup'>('idle')
   const [userCode, setUserCode] = useState('')
   const [verificationUri, setVerificationUri] = useState('')
+  const [deviceCode, setDeviceCode] = useState('')
+  const [interval, setIntervalMs] = useState(5000)
   const [error, setError] = useState<string | null>(null)
   const [clientId, setClientId] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   async function handleLogin(): Promise<void> {
     setError(null)
+    setIsLoading(true)
     try {
-      const data = await window.electronAPI.auth.deviceFlowStart()
-      setUserCode(data.userCode)
-      setVerificationUri(data.verificationUri)
-      setStep('polling')
+      const data = await authService.startDeviceFlow()
 
-      // Start polling in background
-      const result = await window.electronAPI.auth.deviceFlowPoll(data.deviceCode, data.interval)
-      setAuth(result.token, result.profile)
+      if (data.error === 'client_id_not_configured') {
+        setStep('setup')
+        setIsLoading(false)
+        return
+      }
+
+      if (!data.device_code || !data.user_code || !data.verification_uri) {
+        throw new Error('Resposta inválida do GitHub')
+      }
+
+      setUserCode(data.user_code)
+      setVerificationUri(data.verification_uri)
+      setDeviceCode(data.device_code)
+      setIntervalMs((data.interval ?? 5) * 1000)
+      setStep('polling')
+      setIsLoading(false)
+
+      // Poll until success or error
+      await pollForToken(data.device_code, (data.interval ?? 5) * 1000)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Erro ao autenticar'
-      if (msg.includes('GITHUB_CLIENT_ID')) {
-        setStep('setup')
-      } else {
-        setError(msg)
-        setStep('idle')
-      }
+      setError(msg)
+      setStep('idle')
+      setIsLoading(false)
     }
+  }
+
+  async function pollForToken(code: string, intervalMs: number): Promise<void> {
+    const maxAttempts = 60
+    let attempts = 0
+
+    while (attempts < maxAttempts) {
+      const result = await authService.pollDeviceFlow(code, intervalMs)
+
+      if (result.success && result.profile) {
+        await authService.getProfile()
+        onSuccess?.()
+        return
+      }
+
+      if (result.pending) {
+        attempts++
+        continue
+      }
+
+      // Error case
+      setError(result.error ?? 'Erro ao autenticar')
+      setStep('idle')
+      return
+    }
+
+    setError('Tempo esgotado. Tente novamente.')
+    setStep('idle')
   }
 
   async function handleSaveClientId(): Promise<void> {
@@ -36,6 +83,12 @@ export function LoginScreen(): JSX.Element {
     await window.electronAPI.auth.setClientId(clientId.trim())
     setStep('idle')
     handleLogin()
+  }
+
+  function handleCopyCode(): void {
+    navigator.clipboard.writeText(userCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   if (step === 'setup') {
@@ -65,6 +118,12 @@ export function LoginScreen(): JSX.Element {
           >
             Salvar e continuar
           </button>
+          <button
+            className="mt-3 text-xs text-[var(--text-4)] hover:text-[var(--text-3)] cursor-pointer transition-colors"
+            onClick={() => setStep('idle')}
+          >
+            Voltar
+          </button>
         </div>
       </div>
     )
@@ -78,7 +137,7 @@ export function LoginScreen(): JSX.Element {
           <p className="text-sm text-[var(--text-2)] mb-6">Autorize o acesso no GitHub</p>
 
           <div className="bg-[var(--surface-2)] rounded-xl p-6 mb-6">
-            <p className="text-xs text-[var(--text-3)] mb-2">Digite este código em</p>
+            <p className="text-xs text-[var(--text-3)] mb-2">Acesse este endereço no navegador:</p>
             <a
               href={verificationUri}
               className="text-[var(--accent)] text-xs underline block mb-4"
@@ -86,13 +145,20 @@ export function LoginScreen(): JSX.Element {
             >
               {verificationUri}
             </a>
-            <div className="text-3xl font-mono font-bold tracking-[0.3em] text-[var(--text)] select-all">
+            <p className="text-xs text-[var(--text-3)] mb-3">e insira o código:</p>
+            <div className="text-3xl font-mono font-bold tracking-[0.3em] text-[var(--text)] select-all mb-4">
               {userCode}
             </div>
+            <button
+              className="px-4 py-1.5 bg-[var(--surface-3)] text-[var(--text-2)] rounded-lg text-xs cursor-pointer hover:bg-[var(--surface)] transition-colors border border-[var(--border-2)]"
+              onClick={handleCopyCode}
+            >
+              {copied ? 'Copiado!' : 'Copiar código'}
+            </button>
           </div>
 
           <div className="flex items-center justify-center gap-2 text-[var(--text-3)] text-sm">
-            <span className="animate-spin text-[var(--accent)]">⟳</span>
+            <span className="animate-spin text-[var(--accent)] inline-block">⟳</span>
             <span>Aguardando autorização...</span>
           </div>
         </div>
@@ -115,24 +181,31 @@ export function LoginScreen(): JSX.Element {
         )}
 
         <button
-          className="w-full py-3 bg-[#24292e] hover:bg-[#2f363d] text-white rounded-xl text-sm cursor-pointer transition-colors flex items-center justify-center gap-2"
+          className="w-full py-3 bg-[#24292e] hover:bg-[#2f363d] text-white rounded-xl text-sm cursor-pointer transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           onClick={handleLogin}
+          disabled={isLoading}
         >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-          </svg>
-          Entrar com GitHub
+          {isLoading ? (
+            <span className="animate-spin inline-block">⟳</span>
+          ) : (
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+            </svg>
+          )}
+          {isLoading ? 'Iniciando...' : 'Entrar com GitHub'}
         </button>
 
-        <p className="text-xs text-[var(--text-4)] mt-4">
-          Também é possível usar sem conta —{' '}
-          <button
-            className="text-[var(--accent)] cursor-pointer underline"
-            onClick={() => {/* skip auth */}}
-          >
-            usar localmente
-          </button>
-        </p>
+        {onSkip && (
+          <p className="text-xs text-[var(--text-4)] mt-4">
+            Também é possível usar sem conta —{' '}
+            <button
+              className="text-[var(--accent)] cursor-pointer underline"
+              onClick={onSkip}
+            >
+              usar localmente
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )

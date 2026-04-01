@@ -1,0 +1,10 @@
+.cm-md-hidden { opacity: 0; font-size: 1px; }
+.cm-h1 { font-size: 1.8em; font-weight: 700; color: var(--color-heading); }
+.cm-h2 { font-size: 1.5em; font-weight: 600; color: var(--color-heading); }
+.cm-h3 { font-size: 1.3em; font-weight: 600; color: var(--color-heading); }
+.cm-bold { font-weight: 700; }
+.cm-italic { font-style: italic; }
+.cm-inline-code { background: var(--bg-elevated); border-radius: 3px; padding: 0 3px; font-size: 0.9em; }
+.cm-link-text { color: var(--color-primary); text-decoration: underline; cursor: pointer; }
+.cm-list-bullet { color: transparent; }
+.cm-list-bullet::before { content: '•'; color: var(--color-muted); }

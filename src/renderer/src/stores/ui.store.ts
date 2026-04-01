@@ -9,11 +9,17 @@ interface UIStore {
   sidebarWidth: number
   focusMode: boolean
   vimMode: boolean
+  fontFamily: string
+  fontSize: number
+  lineHeight: number
   setTheme: (theme: Theme) => void
   toggleSidebar: () => void
   setSidebarWidth: (width: number) => void
   toggleFocusMode: () => void
   toggleVimMode: () => void
+  setFontFamily: (fontFamily: string) => void
+  setFontSize: (fontSize: number) => void
+  setLineHeight: (lineHeight: number) => void
 }
 
 function getSystemTheme(): 'dark' | 'light' {
@@ -29,7 +35,10 @@ const stored = {
   theme: (localStorage.getItem('hai:theme') as Theme) ?? 'dark',
   sidebarOpen: localStorage.getItem('hai:sidebar') !== 'false',
   sidebarWidth: Number(localStorage.getItem('hai:sidebar-width')) || 220,
-  vimMode: localStorage.getItem('hai:vim') === 'true'
+  vimMode: localStorage.getItem('hai:vim') === 'true',
+  fontFamily: localStorage.getItem('hai:font-family') ?? "'JetBrains Mono', monospace",
+  fontSize: Number(localStorage.getItem('hai:font-size')) || 14,
+  lineHeight: Number(localStorage.getItem('hai:line-height')) || 1.7
 }
 
 export const useUIStore = create<UIStore>((set, get) => ({
@@ -39,6 +48,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
   sidebarWidth: stored.sidebarWidth,
   focusMode: false,
   vimMode: stored.vimMode,
+  fontFamily: stored.fontFamily,
+  fontSize: stored.fontSize,
+  lineHeight: stored.lineHeight,
 
   setTheme: (theme) => {
     localStorage.setItem('hai:theme', theme)
@@ -64,6 +76,21 @@ export const useUIStore = create<UIStore>((set, get) => ({
     const vim = !useUIStore.getState().vimMode
     localStorage.setItem('hai:vim', String(vim))
     set({ vimMode: vim })
+  },
+
+  setFontFamily: (fontFamily: string) => {
+    localStorage.setItem('hai:font-family', fontFamily)
+    set({ fontFamily })
+  },
+
+  setFontSize: (fontSize: number) => {
+    localStorage.setItem('hai:font-size', String(fontSize))
+    set({ fontSize })
+  },
+
+  setLineHeight: (lineHeight: number) => {
+    localStorage.setItem('hai:line-height', String(lineHeight))
+    set({ lineHeight })
   }
 }))
 

@@ -1,40 +1,48 @@
+export interface HaiManifest {
+  version: string
+  notebooks: Notebook[]
+  tags: Tag[]
+  pinned: string[]        // relative paths
+  inbox: string           // default: 'inbox'
+  trash?: TrashEntry[]
+  syncConfig?: { repoUrl: string; autoSyncMinutes: number }
+}
+
 export interface Notebook {
   id: string
   name: string
-  path: string      // relative to vault root
+  path: string            // relative path to folder in vault
   color?: string
   icon?: string
   order: number
+  createdAt: string
 }
 
 export interface Tag {
-  name: string      // slug (no spaces, used as key)
-  label: string     // display name
-  color: string     // hex
+  name: string
+  label: string
+  color: string
 }
 
 export interface TrashEntry {
-  path: string          // current path in .trash/
-  originalPath: string  // original relative path
-  deletedAt: string     // ISO date
+  originalPath: string    // relative to vault
+  trashedAt: string
+  trashPath: string       // relative to vault/.trash/
 }
 
-export interface HaiManifest {
-  version: number
-  notebooks: Notebook[]
-  tags: Tag[]
-  pinned: string[]      // relative paths
-  inbox: string         // relative path, default "inbox"
-  trash: TrashEntry[]
-  sync?: {
-    repo: string
-    interval: number    // minutes: 0 = manual, 5, 15, 30
-    lastSync?: string
-  }
+export interface NoteFrontmatter {
+  title: string
+  created: string
+  updated: string
+  tags?: string[]
+  pinned?: boolean
+  notebook?: string       // notebook id
+  gistId?: string
+  gistUrl?: string
 }
 
 export const DEFAULT_MANIFEST: HaiManifest = {
-  version: 1,
+  version: '1',
   notebooks: [],
   tags: [],
   pinned: [],

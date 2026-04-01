@@ -8,6 +8,7 @@ import { registerManifestHandlers } from './ipc/manifest.ipc'
 import { registerAuthHandlers } from './ipc/auth.ipc'
 import { registerSearchHandlers } from './ipc/search.ipc'
 import { registerExportHandlers } from './ipc/export.ipc'
+import { registerAppHandlers } from './ipc/app.ipc'
 
 let mainWindow: BrowserWindow | null = null
 let quickCaptureWindow: BrowserWindow | null = null
@@ -24,9 +25,11 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 14, y: 10 },
-    backgroundColor: '#0a0a0a',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    trafficLightPosition: process.platform === 'darwin' ? { x: 14, y: 10 } : undefined,
+    backgroundColor: '#0d1117',
+    ...(process.platform === 'darwin' ? { vibrancy: 'under-window' } : {}),
+    titleBarOverlay: process.platform !== 'darwin' ? { color: '#0d1117', symbolColor: '#ffffff' } : undefined,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
@@ -103,6 +106,7 @@ app.whenReady().then(() => {
   registerAuthHandlers()
   registerSearchHandlers()
   registerExportHandlers()
+  registerAppHandlers()
 
   createWindow()
 

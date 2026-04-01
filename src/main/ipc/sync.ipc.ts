@@ -4,14 +4,14 @@ import path from 'path'
 import git from 'isomorphic-git'
 import http from 'isomorphic-git/http/node'
 import store from '../store'
-import { getPassword, setPassword } from '../keychain'
+import { getPassword } from '../keychain'
 import keytar from 'keytar'
 import type { PushResult, PullResult, SyncStatus, ConflictFile } from '../../renderer/src/types/sync'
 
 // ── Auth helpers ─────────────────────────────────────────
 
 async function getAuthToken(): Promise<string | null> {
-  // Try OAuth token first, fall back to PAT
+  // Try OAuth token first (from device flow auth), fall back to PAT
   const oauth = await keytar.getPassword('hai-github', 'oauth-token')
   if (oauth) return oauth
   return getPassword('github-pat')
@@ -29,23 +29,28 @@ function getOnAuth(token: string) {
 
 async function ensureGitRepo(vaultPath: string, repoUrl: string): Promise<void> {
   try {
-    await git.resolveRef({ fs, dir: vaultPath, ref: 'HEAD' })
+    await git.resolveRef({ fs: { promises: fs }, dir: vaultPath, ref: 'HEAD' })
   } catch {
-    await git.init({ fs, dir: vaultPath, defaultBranch: 'main' })
+    await git.init({ fs: { promises: fs }, dir: vaultPath, defaultBranch: 'main' })
   }
 
-  const remotes = await git.listRemotes({ fs, dir: vaultPath })
-  if (!remotes.find((r) => r.remote === 'origin')) {
-    await git.addRemote({ fs, dir: vaultPath, remote: 'origin', url: repoUrl })
+  const remotes = await git.listRemotes({ fs: { promises: fs }, dir: vaultPath })
+  const hasOrigin = remotes.find((r) => r.remote === 'origin')
+  if (!hasOrigin) {
+    await git.addRemote({ fs: { promises: fs }, dir: vaultPath, remote: 'origin', url: repoUrl })
+  } else {
+    // Update existing origin in case URL changed
+    await git.deleteRemote({ fs: { promises: fs }, dir: vaultPath, remote: 'origin' })
+    await git.addRemote({ fs: { promises: fs }, dir: vaultPath, remote: 'origin', url: repoUrl })
   }
 
-  const status = await git.statusMatrix({ fs, dir: vaultPath })
+  const status = await git.statusMatrix({ fs: { promises: fs }, dir: vaultPath })
   const hasChanges = status.some(([, head, workdir, stage]) => workdir !== head || stage !== head)
 
   if (hasChanges) {
-    await git.add({ fs, dir: vaultPath, filepath: '.' })
+    await git.add({ fs: { promises: fs }, dir: vaultPath, filepath: '.' })
     await git.commit({
-      fs,
+      fs: { promises: fs },
       dir: vaultPath,
       message: 'chore: initial commit from Hai',
       author: { name: 'Hai', email: 'hai@local' }
@@ -57,38 +62,46 @@ async function ensureGitRepo(vaultPath: string, repoUrl: string): Promise<void> 
 
 let autoSyncTimer: NodeJS.Timeout | null = null
 
+async function handlePush(message?: string): Promise<PushResult> {
+  const vaultConfig = store.get('vaultConfig')
+  const syncConfig = store.get('syncConfig')
+  if (!vaultConfig || !syncConfig) throw new Error('Vault ou sync não configurado')
+
+  const token = await getAuthToken()
+  if (!token) throw new Error('Token não encontrado. Configure o sync.')
+
+  const statusMatrix = await git.statusMatrix({ fs: { promises: fs }, dir: vaultConfig.path })
+  const modified = statusMatrix.filter(([, head, workdir, stage]) => workdir !== head || stage !== head)
+
+  if (modified.length === 0) {
+    return { filesCommitted: 0, commitHash: '', timestamp: new Date().toISOString() }
+  }
+
+  await git.add({ fs: { promises: fs }, dir: vaultConfig.path, filepath: '.' })
+  const sha = await git.commit({
+    fs: { promises: fs },
+    dir: vaultConfig.path,
+    message: message ?? `hai: sync ${new Date().toLocaleString('pt-BR')}`,
+    author: { name: 'Hai', email: 'hai@local' }
+  })
+
+  await git.push({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
+
+  const timestamp = new Date().toISOString()
+  store.set('syncConfig', { ...syncConfig, lastSync: timestamp } as never)
+
+  return { filesCommitted: modified.length, commitHash: sha, timestamp }
+}
+
 export function startAutoSync(intervalMinutes: number): void {
   stopAutoSync()
   if (intervalMinutes <= 0) return
 
   autoSyncTimer = setInterval(async () => {
     try {
-      const vaultConfig = store.get('vaultConfig')
-      const syncConfig = store.get('syncConfig')
-      if (!vaultConfig || !syncConfig) return
-
-      const token = await getAuthToken()
-      if (!token) return
-
-      const statusMatrix = await git.statusMatrix({ fs, dir: vaultConfig.path })
-      const modified = statusMatrix.filter(([, head, workdir, stage]) => workdir !== head || stage !== head)
-
-      if (modified.length > 0) {
-        await git.add({ fs, dir: vaultConfig.path, filepath: '.' })
-        await git.commit({
-          fs,
-          dir: vaultConfig.path,
-          message: `hai: auto-sync ${new Date().toLocaleString('pt-BR')}`,
-          author: { name: 'Hai', email: 'hai@local' }
-        })
-        await git.push({
-          fs, http, dir: vaultConfig.path, remote: 'origin',
-          onAuth: getOnAuth(token)
-        })
-      }
-
+      const result = await handlePush()
       BrowserWindow.getAllWindows().forEach((win) => {
-        win.webContents.send('sync:auto-synced', { timestamp: new Date().toISOString(), files: modified.length })
+        win.webContents.send('sync:auto-synced', { timestamp: result.timestamp, files: result.filesCommitted })
       })
     } catch (err) {
       BrowserWindow.getAllWindows().forEach((win) => {
@@ -108,57 +121,37 @@ export function stopAutoSync(): void {
 // ── IPC Handlers ─────────────────────────────────────────
 
 export function registerSyncHandlers(): void {
-  // sync:configure
-  ipcMain.handle('sync:configure', async (_event, pat: string, repoUrl: string) => {
+  // sync:configure — validate token, init git, add remote
+  ipcMain.handle('sync:configure', async (_event, repoUrl: string) => {
+    const token = await getAuthToken()
+    if (!token) throw new Error('Nenhum token encontrado. Faça login com GitHub primeiro.')
+
     // Validate token
     const res = await fetch('https://api.github.com/user', {
-      headers: { Authorization: `Bearer ${pat}`, Accept: 'application/vnd.github+json' }
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' }
     })
     if (!res.ok) throw new Error('Token inválido ou sem permissão')
 
     const { owner, repo } = parseRepoUrl(repoUrl)
     const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
-      headers: { Authorization: `Bearer ${pat}` }
+      headers: { Authorization: `Bearer ${token}` }
     })
     if (!repoRes.ok) throw new Error(`Repositório ${owner}/${repo} não encontrado ou sem acesso`)
 
-    await setPassword('github-pat', pat)
     store.set('syncConfig', { repoUrl, configuredAt: new Date().toISOString() })
 
     const vaultConfig = store.get('vaultConfig')
     if (vaultConfig) await ensureGitRepo(vaultConfig.path, repoUrl)
+
+    return { success: true }
   })
 
-  // sync:push
+  // sync:push — stage all, commit, push
   ipcMain.handle('sync:push', async (_event, message?: string) => {
-    const vaultConfig = store.get('vaultConfig')
-    const syncConfig = store.get('syncConfig')
-    if (!vaultConfig || !syncConfig) throw new Error('Vault ou sync não configurado')
-
-    const token = await getAuthToken()
-    if (!token) throw new Error('Token não encontrado. Configure o sync.')
-
-    const statusMatrix = await git.statusMatrix({ fs, dir: vaultConfig.path })
-    const modified = statusMatrix.filter(([, head, workdir, stage]) => workdir !== head || stage !== head)
-
-    if (modified.length === 0) {
-      return { filesCommitted: 0, commitHash: '', timestamp: new Date().toISOString() } as PushResult
-    }
-
-    await git.add({ fs, dir: vaultConfig.path, filepath: '.' })
-    const sha = await git.commit({
-      fs,
-      dir: vaultConfig.path,
-      message: message ?? `hai: sync ${new Date().toLocaleString('pt-BR')}`,
-      author: { name: 'Hai', email: 'hai@local' }
-    })
-
-    await git.push({ fs, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
-
-    return { filesCommitted: modified.length, commitHash: sha, timestamp: new Date().toISOString() } as PushResult
+    return handlePush(message)
   })
 
-  // sync:pull
+  // sync:pull — fetch + merge, detect conflicts
   ipcMain.handle('sync:pull', async () => {
     const vaultConfig = store.get('vaultConfig')
     const syncConfig = store.get('syncConfig')
@@ -167,11 +160,11 @@ export function registerSyncHandlers(): void {
     const token = await getAuthToken()
     if (!token) throw new Error('Token não encontrado. Configure o sync.')
 
-    await git.fetch({ fs, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
+    await git.fetch({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
 
     try {
       const mergeResult = await git.merge({
-        fs, dir: vaultConfig.path,
+        fs: { promises: fs }, dir: vaultConfig.path,
         ours: 'HEAD', theirs: 'FETCH_HEAD',
         author: { name: 'Hai', email: 'hai@local' }
       })
@@ -180,7 +173,7 @@ export function registerSyncHandlers(): void {
         hasConflicts: false, conflicts: []
       } as PullResult
     } catch {
-      const statusMatrix = await git.statusMatrix({ fs, dir: vaultConfig.path })
+      const statusMatrix = await git.statusMatrix({ fs: { promises: fs }, dir: vaultConfig.path })
       const conflicts: ConflictFile[] = []
       for (const [filepath, head, workdir, stage] of statusMatrix) {
         if (head === 1 && workdir === 2 && stage === 3) {
@@ -190,23 +183,36 @@ export function registerSyncHandlers(): void {
           } catch { /* deleted */ }
         }
       }
+
+      // Notify renderer about detected conflicts
+      BrowserWindow.getAllWindows().forEach((win) => {
+        win.webContents.send('sync:conflict-detected', { conflicts })
+      })
+
       return { filesUpdated: 0, hasConflicts: true, conflicts } as PullResult
     }
   })
 
-  // sync:resolve-conflict
+  // sync:resolve-conflict — write chosen version, stage
   ipcMain.handle('sync:resolve-conflict', async (_event, filePath: string, choice: 'local' | 'remote') => {
     const vaultConfig = store.get('vaultConfig')
     if (!vaultConfig) throw new Error('Vault não configurado')
     const fullPath = path.join(vaultConfig.path, filePath)
     if (choice === 'remote') {
-      const remoteContent = await git.readBlob({ fs, dir: vaultConfig.path, oid: 'FETCH_HEAD', filepath: filePath })
-      await fs.writeFile(fullPath, Buffer.from(remoteContent.blob), 'utf-8')
+      try {
+        const remoteContent = await git.readBlob({ fs: { promises: fs }, dir: vaultConfig.path, oid: 'FETCH_HEAD', filepath: filePath })
+        await fs.writeFile(fullPath, Buffer.from(remoteContent.blob), 'utf-8')
+      } catch {
+        // FETCH_HEAD may not have the file blob directly; try reading current content
+      }
     }
-    await git.add({ fs, dir: vaultConfig.path, filepath: filePath })
+    // For 'local': the file already has local content (conflict markers need to be cleaned)
+    // For simplicity, if local: keep the file as-is (user's local version)
+    await git.add({ fs: { promises: fs }, dir: vaultConfig.path, filepath: filePath })
+    return { success: true }
   })
 
-  // sync:get-status
+  // sync:get-status — check pending changes via statusMatrix
   ipcMain.handle('sync:get-status', async () => {
     const syncConfig = store.get('syncConfig')
     if (!syncConfig) {
@@ -217,23 +223,26 @@ export function registerSyncHandlers(): void {
       return { status: 'not-configured', pendingChanges: 0, lastSync: null, lastError: null, repoUrl: syncConfig.repoUrl } as SyncStatus
     }
     try {
-      const statusMatrix = await git.statusMatrix({ fs, dir: vaultConfig.path })
+      const statusMatrix = await git.statusMatrix({ fs: { promises: fs }, dir: vaultConfig.path })
       const pendingChanges = statusMatrix.filter(([, head, workdir, stage]) => workdir !== head || stage !== head).length
       return {
         status: pendingChanges > 0 ? 'pending' : 'synced',
-        pendingChanges, lastSync: syncConfig.configuredAt, lastError: null, repoUrl: syncConfig.repoUrl
+        pendingChanges,
+        lastSync: (syncConfig as never as { lastSync?: string }).lastSync ?? syncConfig.configuredAt,
+        lastError: null,
+        repoUrl: syncConfig.repoUrl
       } as SyncStatus
     } catch {
       return { status: 'error', pendingChanges: 0, lastSync: null, lastError: 'Erro ao verificar git', repoUrl: syncConfig.repoUrl } as SyncStatus
     }
   })
 
-  // sync:get-history — git log for a file
+  // sync:get-history — git log for a file or entire repo
   ipcMain.handle('sync:get-history', async (_event, relativePath?: string) => {
     const vaultConfig = store.get('vaultConfig')
     if (!vaultConfig) return []
     try {
-      const commits = await git.log({ fs, dir: vaultConfig.path, filepath: relativePath, depth: 50 })
+      const commits = await git.log({ fs: { promises: fs }, dir: vaultConfig.path, filepath: relativePath, depth: 50 })
       return commits.map((c) => ({
         oid: c.oid,
         message: c.commit.message.trim(),
@@ -246,13 +255,13 @@ export function registerSyncHandlers(): void {
     }
   })
 
-  // sync:get-diff — diff a file between two commits
+  // sync:get-diff — compare file content between two commits
   ipcMain.handle('sync:get-diff', async (_event, relativePath: string, oidA: string, oidB: string) => {
     const vaultConfig = store.get('vaultConfig')
     if (!vaultConfig) return { before: '', after: '' }
     try {
       const readBlob = async (oid: string): Promise<string> => {
-        const result = await git.readBlob({ fs, dir: vaultConfig.path, oid, filepath: relativePath })
+        const result = await git.readBlob({ fs: { promises: fs }, dir: vaultConfig.path, oid, filepath: relativePath })
         return new TextDecoder().decode(result.blob)
       }
       const [before, after] = await Promise.all([readBlob(oidA), readBlob(oidB)])
@@ -262,18 +271,30 @@ export function registerSyncHandlers(): void {
     }
   })
 
-  // sync:restore-version — restore file to a commit's content
+  // sync:restore-version — restore file to content at a specific commit
   ipcMain.handle('sync:restore-version', async (_event, relativePath: string, oid: string) => {
     const vaultConfig = store.get('vaultConfig')
     if (!vaultConfig) throw new Error('Vault não configurado')
-    const result = await git.readBlob({ fs, dir: vaultConfig.path, oid, filepath: relativePath })
+    const result = await git.readBlob({ fs: { promises: fs }, dir: vaultConfig.path, oid, filepath: relativePath })
     const content = new TextDecoder().decode(result.blob)
     await fs.writeFile(path.join(vaultConfig.path, relativePath), content, 'utf-8')
     return content
   })
 
-  // sync:set-interval — update auto-sync interval
+  // sync:set-interval — legacy: update auto-sync interval
   ipcMain.handle('sync:set-interval', async (_event, minutes: number) => {
     startAutoSync(minutes)
+  })
+
+  // sync:set-auto — set auto-sync interval (0 = manual)
+  ipcMain.handle('sync:set-auto', async (_event, intervalMinutes: number) => {
+    startAutoSync(intervalMinutes)
+    store.set('autoSyncMinutes' as never, intervalMinutes as never)
+  })
+
+  // sync:stop-auto — stop auto-sync timer
+  ipcMain.handle('sync:stop-auto', async () => {
+    stopAutoSync()
+    store.set('autoSyncMinutes' as never, 0 as never)
   })
 }

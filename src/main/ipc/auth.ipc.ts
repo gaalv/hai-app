@@ -10,26 +10,25 @@ import store from '../store'
 import keytar from 'keytar'
 import type { GitHubProfile } from '../../renderer/src/types/auth'
 
-const SERVICE = 'hai-github'
-const ACCOUNT = 'oauth-token'
-const GITHUB_CLIENT_ID = process.env['GITHUB_CLIENT_ID'] ?? store.get('githubClientId' as never) ?? ''
+const SERVICE = 'hai'
+const TOKEN_KEY = 'github-token'
 
 async function getToken(): Promise<string | null> {
-  return keytar.getPassword(SERVICE, ACCOUNT)
+  return keytar.getPassword(SERVICE, TOKEN_KEY)
 }
 
 async function setToken(token: string): Promise<void> {
-  await keytar.setPassword(SERVICE, ACCOUNT, token)
+  await keytar.setPassword(SERVICE, TOKEN_KEY, token)
 }
 
 async function deleteToken(): Promise<void> {
-  await keytar.deletePassword(SERVICE, ACCOUNT)
+  await keytar.deletePassword(SERVICE, TOKEN_KEY)
 }
 
 async function fetchProfile(token: string): Promise<GitHubProfile> {
   const res = await fetch('https://api.github.com/user', {
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `token ${token}`,
       Accept: 'application/vnd.github+json'
     }
   })
@@ -53,8 +52,19 @@ export function registerAuthHandlers(): void {
   ipcMain.handle('auth:get-profile', async () => {
     const token = await getToken()
     if (!token) return null
+
+    // Check cache (< 1 hour)
+    const cached = store.get('cachedProfile')
+    const cachedAt = store.get('profileCachedAt')
+    if (cached && cachedAt && Date.now() - (cachedAt as number) < 60 * 60 * 1000) {
+      return cached
+    }
+
     try {
-      return await fetchProfile(token)
+      const profile = await fetchProfile(token)
+      store.set('cachedProfile', profile)
+      store.set('profileCachedAt', Date.now())
+      return profile
     } catch {
       return null
     }
@@ -62,20 +72,18 @@ export function registerAuthHandlers(): void {
 
   // Start device flow authentication
   ipcMain.handle('auth:device-flow-start', async () => {
-    if (!GITHUB_CLIENT_ID) {
-      throw new Error('GITHUB_CLIENT_ID não configurado. Veja as instruções de setup.')
+    const clientId = store.get('githubClientId') as string | undefined | null
+    if (!clientId) {
+      return { error: 'client_id_not_configured' }
     }
 
     const res = await fetch('https://github.com/login/device/code', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
         Accept: 'application/json'
       },
-      body: JSON.stringify({
-        client_id: GITHUB_CLIENT_ID,
-        scope: 'repo read:user user:email'
-      })
+      body: `client_id=${clientId}&scope=repo%20read:user`
     })
 
     if (!res.ok) throw new Error('Erro ao iniciar autenticação com GitHub')
@@ -91,64 +99,78 @@ export function registerAuthHandlers(): void {
     shell.openExternal(data.verification_uri)
 
     return {
+      device_code: data.device_code,
+      user_code: data.user_code,
+      verification_uri: data.verification_uri,
+      expires_in: data.expires_in,
+      interval: data.interval,
+      // Also expose camelCase for convenience
       userCode: data.user_code,
       verificationUri: data.verification_uri,
       deviceCode: data.device_code,
-      interval: data.interval * 1000,
       expiresIn: data.expires_in
     }
   })
 
   // Poll for token after user authorizes
   ipcMain.handle('auth:device-flow-poll', async (_e, deviceCode: string, interval: number) => {
-    const maxAttempts = 60
-    let attempts = 0
-
-    while (attempts < maxAttempts) {
-      await new Promise((r) => setTimeout(r, interval))
-
-      const res = await fetch('https://github.com/login/oauth/access_token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json'
-        },
-        body: JSON.stringify({
-          client_id: GITHUB_CLIENT_ID,
-          device_code: deviceCode,
-          grant_type: 'urn:ietf:params:oauth:grant-type:device_code'
-        })
-      })
-
-      const data = await res.json() as Record<string, string>
-
-      if (data.access_token) {
-        await setToken(data.access_token)
-        const profile = await fetchProfile(data.access_token)
-        return { token: data.access_token, profile }
-      }
-
-      if (data.error === 'access_denied') throw new Error('Autorização negada pelo usuário')
-      if (data.error === 'expired_token') throw new Error('Código expirou. Tente novamente.')
-      // 'authorization_pending' or 'slow_down' → keep polling
-
-      if (data.error === 'slow_down') {
-        await new Promise((r) => setTimeout(r, 5000))
-      }
-
-      attempts++
+    const clientId = store.get('githubClientId') as string | undefined | null
+    if (!clientId) {
+      return { success: false, error: 'client_id_not_configured' }
     }
 
-    throw new Error('Tempo esgotado. Tente novamente.')
+    // interval may be in ms (from renderer) or seconds (from spec); normalize to ms
+    const waitMs = interval > 1000 ? interval : interval * 1000
+
+    await new Promise((r) => setTimeout(r, waitMs))
+
+    const res = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json'
+      },
+      body: `client_id=${clientId}&device_code=${deviceCode}&grant_type=urn:ietf:params:oauth:grant-type:device_code`
+    })
+
+    const data = await res.json() as Record<string, string>
+
+    if (data.access_token) {
+      await setToken(data.access_token)
+      const profile = await fetchProfile(data.access_token)
+      store.set('cachedProfile', profile)
+      store.set('profileCachedAt', Date.now())
+      return { success: true, token: data.access_token, profile }
+    }
+
+    if (data.error === 'authorization_pending' || data.error === 'slow_down') {
+      return { success: false, pending: true }
+    }
+
+    if (data.error === 'access_denied') {
+      return { success: false, error: 'Autorização negada pelo usuário' }
+    }
+
+    if (data.error === 'expired_token') {
+      return { success: false, error: 'Código expirou. Tente novamente.' }
+    }
+
+    return { success: false, error: data.error ?? 'Erro desconhecido' }
   })
 
   // Set client_id (for first-time setup)
   ipcMain.handle('auth:set-client-id', async (_e, clientId: string) => {
-    store.set('githubClientId' as never, clientId as never)
+    store.set('githubClientId', clientId)
   })
 
   ipcMain.handle('auth:logout', async () => {
     await deleteToken()
+    store.delete('cachedProfile')
+    store.delete('profileCachedAt')
+    // Notify renderer
+    BrowserWindow.getAllWindows().forEach((win) => {
+      win.webContents.send('auth:changed', 'logout')
+    })
   })
 
   // Notify renderer when auth changes (called from sync handlers)

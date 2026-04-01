@@ -13,11 +13,15 @@ interface EditorStore {
   isSaving: boolean
   saveError: string | null
   previewMode: PreviewMode
+  vimMode: string
+  focusMode: boolean
   openNote: (path: string) => Promise<void>
   setContent: (content: string) => void
   save: () => Promise<void>
   setPreviewMode: (mode: PreviewMode) => void
   closeNote: () => void
+  setVimMode: (mode: string) => void
+  toggleFocusMode: () => void
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -26,6 +30,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   isSaving: false,
   saveError: null,
   previewMode: 'none',
+  vimMode: 'normal',
+  focusMode: false,
 
   openNote: async (path: string) => {
     const content = await window.electronAPI.notes.read(path)
@@ -54,5 +60,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   setPreviewMode: (previewMode: PreviewMode) => set({ previewMode }),
 
-  closeNote: () => set({ activeNote: null, isDirty: false, saveError: null })
+  closeNote: () => set({ activeNote: null, isDirty: false, saveError: null }),
+
+  setVimMode: (mode: string) => set({ vimMode: mode }),
+
+  toggleFocusMode: () => set((s) => ({ focusMode: !s.focusMode }))
 }))

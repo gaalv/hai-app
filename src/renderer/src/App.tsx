@@ -1,12 +1,13 @@
-import { AppShell } from './components/layout/AppShell'
-import { QuickCapture } from './windows/QuickCapture'
+import { AppShell } from "./components/layout/AppShell";
+import { QuickCapture } from "./windows/QuickCapture";
 
 function App(): JSX.Element {
   // Route quick capture window via hash
-  if (window.location.hash === '#quick-capture') {
-    return <QuickCapture />
+  console.log("this is the app");
+  if (window.location.hash === "#quick-capture") {
+    return <QuickCapture />;
   }
-  return <AppShell />
+  return <AppShell />;
 }
 
-export default App
+export default App;

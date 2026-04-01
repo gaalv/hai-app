@@ -1,44 +1,28 @@
 import { create } from 'zustand'
 import type { GitHubProfile } from '../types/auth'
 
-interface AuthStore {
-  token: string | null
+interface AuthState {
+  isAuthenticated: boolean
   profile: GitHubProfile | null
   isLoading: boolean
-  isAuthenticated: boolean
-
-  checkAuth: () => Promise<void>
-  logout: () => Promise<void>
-  setAuth: (token: string, profile: GitHubProfile) => void
+  error: string | null
+  setProfile: (profile: GitHubProfile) => void
+  setLoading: (loading: boolean) => void
+  setError: (error: string | null) => void
+  logout: () => void
 }
 
-export const useAuthStore = create<AuthStore>((set) => ({
-  token: null,
+export const useAuthStore = create<AuthState>((set) => ({
+  isAuthenticated: false,
   profile: null,
   isLoading: true,
-  isAuthenticated: false,
+  error: null,
 
-  checkAuth: async () => {
-    set({ isLoading: true })
-    try {
-      const token = await window.electronAPI.auth.getToken()
-      if (token) {
-        const profile = await window.electronAPI.auth.getProfile()
-        set({ token, profile, isAuthenticated: true })
-      } else {
-        set({ token: null, profile: null, isAuthenticated: false })
-      }
-    } finally {
-      set({ isLoading: false })
-    }
-  },
+  setProfile: (profile) => set({ profile, isAuthenticated: true, isLoading: false, error: null }),
 
-  logout: async () => {
-    await window.electronAPI.auth.logout()
-    set({ token: null, profile: null, isAuthenticated: false })
-  },
+  setLoading: (loading) => set({ isLoading: loading }),
 
-  setAuth: (token, profile) => {
-    set({ token, profile, isAuthenticated: true })
-  }
+  setError: (error) => set({ error, isLoading: false }),
+
+  logout: () => set({ isAuthenticated: false, profile: null, isLoading: false, error: null })
 }))

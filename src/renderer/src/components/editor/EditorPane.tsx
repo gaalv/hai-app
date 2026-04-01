@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { EditorView } from '@codemirror/view'
 import { useEditorStore } from '../../stores/editor.store'
 import { useUIStore } from '../../stores/ui.store'
 import { useVaultStore } from '../../stores/vault.store'
 import { useDebounce } from '../../hooks/useDebounce'
-import { CodeMirrorEditor } from './CodeMirrorEditor'
+import { CodeMirrorEditor, CodeMirrorEditorHandle } from './CodeMirrorEditor'
 import { MarkdownPreview } from './MarkdownPreview'
 import { VersionHistory } from './VersionHistory'
+import { VimStatusBar } from './VimStatusBar'
 
 interface Props {
   focusMode?: boolean
@@ -16,6 +18,15 @@ export function EditorPane({ focusMode }: Props): JSX.Element {
   const vimMode = useUIStore((s) => s.vimMode)
   const vaultPath = useVaultStore((s) => s.config?.path ?? '')
   const [showHistory, setShowHistory] = useState(false)
+
+  // Ref to the underlying EditorView for VimStatusBar and other effects
+  const editorRef = useRef<CodeMirrorEditorHandle>(null)
+  const viewRef = useRef<EditorView | null>(null)
+
+  // Keep viewRef in sync with the editor handle
+  useEffect(() => {
+    viewRef.current = editorRef.current?.view ?? null
+  })
 
   useDebounce(save, 500, [activeNote?.content])
 
@@ -52,16 +63,21 @@ export function EditorPane({ focusMode }: Props): JSX.Element {
 
   if (focusMode) {
     return (
-      <div className="flex-1 flex flex-col bg-[var(--bg)] h-full overflow-hidden">
+      <div className="flex-1 flex flex-col bg-[var(--bg)] h-full overflow-hidden focus-mode">
         <div className="flex-1 flex justify-center overflow-hidden">
           <div className="w-full max-w-[680px] overflow-hidden">
             <CodeMirrorEditor
+              ref={editorRef}
               initialContent={activeNote.content}
               onChange={setContent}
               focusMode
               vimMode={vimMode}
             />
           </div>
+        </div>
+        {/* Statusbar in focus mode: only vim indicator */}
+        <div className="flex items-center px-4 py-1 shrink-0">
+          <VimStatusBar viewRef={viewRef} />
         </div>
       </div>
     )
@@ -113,7 +129,12 @@ export function EditorPane({ focusMode }: Props): JSX.Element {
       <div className="flex-1 flex overflow-hidden">
         {showEditor && (
           <div className={`flex-1 overflow-hidden ${showPreview ? 'border-r border-[var(--border)]' : ''}`}>
-            <CodeMirrorEditor initialContent={activeNote.content} onChange={setContent} vimMode={vimMode} />
+            <CodeMirrorEditor
+              ref={editorRef}
+              initialContent={activeNote.content}
+              onChange={setContent}
+              vimMode={vimMode}
+            />
           </div>
         )}
         {showPreview && (
@@ -133,6 +154,11 @@ export function EditorPane({ focusMode }: Props): JSX.Element {
             />
           </div>
         )}
+      </div>
+
+      {/* Statusbar with vim mode indicator */}
+      <div className="flex items-center px-2 py-0.5 border-t border-[var(--border)] bg-[var(--surface)] shrink-0 min-h-[24px]">
+        <VimStatusBar viewRef={viewRef} />
       </div>
     </div>
   )
