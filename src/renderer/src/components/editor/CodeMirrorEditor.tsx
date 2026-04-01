@@ -11,7 +11,7 @@ import { inlineMarkdownExtension } from '../../editor/extensions/inlineMarkdown'
 import { fontCompartment, defaultFontTheme } from '../../editor/extensions/fontTheme'
 import { vimCompartment } from '../../editor/extensions/vimMode'
 import { setActiveEditorView } from '../../editor/editorViewRef'
-import './extensions/inlineMarkdown.css'
+import '../../editor/extensions/inlineMarkdown.css'
 
 export interface CodeMirrorEditorHandle {
   view: EditorView | null

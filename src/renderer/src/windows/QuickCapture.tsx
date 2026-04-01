@@ -5,7 +5,6 @@ export function QuickCapture(): JSX.Element {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  console.log("Quick Capture");
   useEffect(() => {
     textareaRef.current?.focus();
   }, []);

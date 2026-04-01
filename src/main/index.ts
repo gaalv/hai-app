@@ -38,7 +38,10 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => mainWindow!.show())
+  mainWindow.on('ready-to-show', () => {
+    mainWindow!.show()
+    if (is.dev) mainWindow!.webContents.openDevTools({ mode: 'detach' })
+  })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
