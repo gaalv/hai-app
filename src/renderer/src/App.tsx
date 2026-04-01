@@ -8,7 +8,7 @@ import { useAuthStore } from './stores/auth.store'
 import type { GitHubProfile } from './types/auth'
 
 type Screen = 'checking' | 'login' | 'repo-setup' | 'app'
-type Tab = 'notebooks' | 'search' | 'tags'
+type Tab = 'notes' | 'notebooks' | 'search' | 'tags'
 
 function App(): JSX.Element {
   if (window.location.hash === '#quick-capture') {
@@ -16,7 +16,7 @@ function App(): JSX.Element {
   }
 
   const [screen, setScreen] = useState<Screen>('checking')
-  const [tab, setTab] = useState<Tab>('notebooks')
+  const [tab, setTab] = useState<Tab>('notes')
   const [profileOpen, setProfileOpen] = useState(false)
   const { setProfile, logout } = useAuthStore()
 

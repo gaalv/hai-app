@@ -19,7 +19,21 @@ export function Rail({ activeTab, onTabChange, onAvatarClick }: RailProps): JSX.
         <HaiIcon size={28} />
       </div>
 
-      {/* Notebooks */}
+      {/* Notes (main editor) */}
+      <RailBtn
+        active={activeTab === 'notes'}
+        title="Notas"
+        onClick={() => onTabChange('notes')}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.3"/>
+          <line x1="6" y1="5" x2="10" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          <line x1="6" y1="7.5" x2="10" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          <line x1="6" y1="10" x2="8.5" y2="10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+        </svg>
+      </RailBtn>
+
+      {/* Notebooks management */}
       <RailBtn
         active={activeTab === 'notebooks'}
         title="Notebooks"

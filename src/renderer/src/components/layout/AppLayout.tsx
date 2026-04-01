@@ -6,9 +6,10 @@ import { NoteList } from './NoteList'
 import { EditorPanel } from './EditorPanel'
 import { SearchPanel } from './SearchPanel'
 import { TagsPanel } from './TagsPanel'
+import { NotebooksPanel } from './NotebooksPanel'
 import { CalendarPanel } from '../calendar/CalendarPanel'
 
-type Tab = 'notebooks' | 'search' | 'tags'
+type Tab = 'notes' | 'notebooks' | 'search' | 'tags'
 
 interface AppLayoutProps {
   tab: Tab
@@ -40,13 +41,14 @@ export function AppLayout({ tab, setTab, onAvatarClick }: AppLayoutProps): JSX.E
 
         {/* Panel host */}
         <div className="flex flex-1 overflow-hidden">
-          {tab === 'notebooks' && (
+          {tab === 'notes' && (
             <div className="flex flex-1 overflow-hidden">
               {sidebarOpen && <Sidebar />}
               <NoteList />
               <EditorPanel />
             </div>
           )}
+          {tab === 'notebooks' && <NotebooksPanel />}
           {tab === 'search' && <SearchPanel />}
           {tab === 'tags' && <TagsPanel />}
         </div>

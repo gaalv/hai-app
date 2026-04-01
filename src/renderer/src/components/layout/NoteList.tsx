@@ -138,21 +138,16 @@ export function NoteList(): JSX.Element {
           </div>
         )}
 
-        {!isLoading && pinnedNotes.length > 0 && (
-          <div>
-            <NoteGroupLabel label="📌 Fixados" />
-            {pinnedNotes.map((note) => (
-              <NoteItem
-                key={note.absolutePath}
-                note={note}
-                selected={selectedNotePath === note.absolutePath}
-                onClick={() => handleNoteClick(note)}
-                isPinned
-                onTogglePin={() => unpinNote(note.relativePath)}
-              />
-            ))}
-          </div>
-        )}
+        {!isLoading && pinnedNotes.map((note) => (
+          <NoteItem
+            key={note.absolutePath}
+            note={note}
+            selected={selectedNotePath === note.absolutePath}
+            onClick={() => handleNoteClick(note)}
+            isPinned
+            onTogglePin={() => unpinNote(note.relativePath)}
+          />
+        ))}
 
         {!isLoading && groups.map((group) => (
           <div key={group.label}>
