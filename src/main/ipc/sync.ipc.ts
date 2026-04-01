@@ -121,6 +121,12 @@ export function stopAutoSync(): void {
 // ── IPC Handlers ─────────────────────────────────────────
 
 export function registerSyncHandlers(): void {
+  // Restore auto-sync timer from saved config on startup
+  const savedInterval = store.get('autoSyncMinutes' as never) as number | undefined
+  if (savedInterval && savedInterval > 0) {
+    startAutoSync(savedInterval)
+  }
+
   // sync:configure — validate token, init git, add remote
   ipcMain.handle('sync:configure', async (_event, repoUrl: string) => {
     const token = await getAuthToken()

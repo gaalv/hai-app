@@ -44,10 +44,12 @@ function App(): JSX.Element {
 
         setScreen('app')
 
-        // Background pull to sync latest notes from GitHub
-        window.electronAPI.sync.pull().catch(() => {
-          // Silently ignore pull errors on startup
-        })
+        // Background sync: pull latest then push local changes
+        window.electronAPI.sync.pull()
+          .then(() => window.electronAPI.sync.push())
+          .catch(() => {
+            // Silently ignore sync errors on startup
+          })
       } catch {
         setScreen('login')
       }
