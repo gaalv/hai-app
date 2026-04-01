@@ -17,13 +17,14 @@ export function AppShell(): JSX.Element {
 
   useEffect(() => {
     async function init() {
+      // Load vault first so isVaultLoading is false before we show any screen
+      await vaultService.load();
       const resolvedMode = await appService.getMode();
       if (resolvedMode === 'sync') {
         await authService.checkAuth();
       } else {
         useAuthStore.getState().setLoading(false);
       }
-      await vaultService.load();
     }
     init();
   }, []);
@@ -39,13 +40,7 @@ export function AppShell(): JSX.Element {
   }
 
   if (mode === null) {
-    return (
-      <OnboardingModeStep
-        onComplete={async (selectedMode) => {
-          await appService.setMode(selectedMode);
-        }}
-      />
-    );
+    return <OnboardingModeStep onComplete={() => {}} />;
   }
 
   if (mode === 'sync' && !profile) {
