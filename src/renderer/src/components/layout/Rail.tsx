@@ -54,9 +54,9 @@ export function Rail({ activeTab, onTabChange, onAvatarClick, onSettingsClick }:
         title="Buscar"
         onClick={() => onTabChange('search')}
       >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <circle cx="6.5" cy="6.5" r="4" stroke="currentColor" strokeWidth="1.5"/>
-          <line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="7" cy="7" r="4.2" stroke="currentColor" strokeWidth="1.5"/>
+          <line x1="10" y1="10" x2="13.5" y2="13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
       </RailBtn>
 
@@ -66,9 +66,9 @@ export function Rail({ activeTab, onTabChange, onAvatarClick, onSettingsClick }:
         title="Tags"
         onClick={() => onTabChange('tags')}
       >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M2 2h5l6 6-5 5-6-6V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-          <circle cx="5" cy="5" r="1" fill="currentColor"/>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M2.5 2.5h5.2l6.3 6.3-5.2 5.2-6.3-6.3V2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+          <circle cx="5.8" cy="5.8" r="1.1" fill="currentColor"/>
         </svg>
       </RailBtn>
 
@@ -77,9 +77,9 @@ export function Rail({ activeTab, onTabChange, onAvatarClick, onSettingsClick }:
 
       {/* Settings */}
       <RailBtn title="Configurações" onClick={onSettingsClick}>
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <circle cx="7.5" cy="7.5" r="2" stroke="currentColor" strokeWidth="1.4"/>
-          <path d="M7.5 1v1.5M7.5 12.5V14M1 7.5h1.5M12.5 7.5H14M2.9 2.9l1.1 1.1M11 11l1.1 1.1M2.9 12.1L4 11M11 4l1.1-1.1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.4"/>
+          <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
         </svg>
       </RailBtn>
 

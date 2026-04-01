@@ -1,17 +1,15 @@
 import { useState } from 'react'
 import { useUIStore } from '../../stores/ui.store'
 import { useAuthStore } from '../../stores/auth.store'
-import { useSyncMode } from '../../hooks/useSyncMode'
 import { updateFontTheme } from '../../editor/extensions/fontTheme'
 import { toggleVimMode } from '../../editor/extensions/vimMode'
 import { getActiveEditorView } from '../../editor/editorViewRef'
-import { ModeSettingsSection } from './ModeSettingsSection'
 
 interface Props {
   onClose: () => void
 }
 
-type Section = 'profile' | 'editor' | 'sync' | 'appearance' | 'mode'
+type Section = 'appearance' | 'editor' | 'sync' | 'profile'
 
 const FONT_OPTIONS = [
   { label: 'JetBrains Mono', value: "'JetBrains Mono', monospace" },
@@ -22,7 +20,6 @@ const FONT_OPTIONS = [
 
 export function SettingsModal({ onClose }: Props): JSX.Element {
   const [section, setSection] = useState<Section>('appearance')
-  const { isSync } = useSyncMode()
   const {
     theme,
     vimMode,
@@ -62,13 +59,19 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
     if (view) updateFontTheme(view, fontFamily, fontSize, value)
   }
 
+  function handleLogout(): void {
+    window.electronAPI.auth.logout()
+    logout()
+    onClose()
+  }
+
   const navItem = (s: Section, label: string) => (
     <button
       key={s}
       className={`text-left w-full px-2.5 py-1.5 rounded text-[11px] font-sans transition-colors cursor-pointer ${
         section === s
-          ? 'bg-[var(--surface-3)] text-[var(--text)]'
-          : 'text-[var(--text-2)] hover:bg-[var(--surface-3)] hover:text-[var(--text)]'
+          ? 'bg-[var(--app-accent-dim)] text-[var(--app-text-1)]'
+          : 'text-[var(--app-text-2)] hover:bg-[var(--app-hover)] hover:text-[var(--app-text-1)]'
       }`}
       onClick={() => setSection(s)}
     >
@@ -82,39 +85,37 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
       onClick={onClose}
     >
       <div
-        className="bg-[var(--surface)] border border-[var(--border)] rounded-xl w-[640px] h-[480px] flex overflow-hidden shadow-2xl relative"
+        className="bg-[var(--app-main)] border-[0.5px] border-[var(--app-border)] rounded-xl w-[640px] h-[480px] flex overflow-hidden shadow-2xl relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sidebar nav */}
-        <div className="w-[160px] shrink-0 bg-[var(--surface-2)] border-r border-[var(--border)] flex flex-col pt-4 pb-3 px-2 gap-0.5">
-          <p className="text-[10px] font-sans uppercase tracking-widest text-[var(--text-3)] px-2.5 pb-2">
+        <div className="w-[160px] shrink-0 bg-[var(--app-sidebar)] border-r-[0.5px] border-r-[var(--app-border)] flex flex-col pt-4 pb-3 px-2 gap-0.5">
+          <p className="text-[10px] font-sans uppercase tracking-widest text-[var(--app-text-3)] px-2.5 pb-2">
             Configurações
           </p>
           {navItem('appearance', 'Aparência')}
           {navItem('editor', 'Editor')}
-          {isSync && navItem('sync', 'Sync')}
-          {isSync && navItem('profile', 'Perfil')}
-          {navItem('mode', 'Modo')}
+          {navItem('sync', 'Sincronização')}
+          {navItem('profile', 'Perfil')}
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-auto px-6 py-5">
           {section === 'appearance' && (
             <div className="space-y-4">
-              <p className="text-[11px] font-sans uppercase tracking-widest text-[var(--text-3)]">
+              <p className="text-[11px] font-sans uppercase tracking-widest text-[var(--app-text-3)]">
                 Aparência
               </p>
-
               <div>
-                <p className="text-[11px] font-sans text-[var(--text-3)] mb-2">Tema</p>
+                <p className="text-[11px] font-sans text-[var(--app-text-3)] mb-2">Tema</p>
                 <div className="flex gap-1.5">
                   {(['auto', 'dark', 'light'] as const).map((t) => (
                     <button
                       key={t}
-                      className={`px-3 py-1.5 rounded text-[11px] font-sans border cursor-pointer transition-colors ${
+                      className={`px-3 py-1.5 rounded text-[11px] font-sans border-[0.5px] cursor-pointer transition-colors ${
                         theme === t
-                          ? 'bg-[var(--accent-dim)] border-[var(--accent)] text-[var(--accent)]'
-                          : 'bg-[var(--surface-2)] border-[var(--border-2)] text-[var(--text-2)] hover:border-[var(--text-3)] hover:text-[var(--text)]'
+                          ? 'bg-[var(--app-accent-dim)] border-[var(--app-accent)] text-[var(--app-accent)]'
+                          : 'bg-white/[0.04] border-[var(--app-border)] text-[var(--app-text-2)] hover:border-[var(--app-text-3)] hover:text-[var(--app-text-1)]'
                       }`}
                       onClick={() => setTheme(t)}
                     >
@@ -128,21 +129,21 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
 
           {section === 'editor' && (
             <div className="space-y-5">
-              <p className="text-[11px] font-sans uppercase tracking-widest text-[var(--text-3)]">
+              <p className="text-[11px] font-sans uppercase tracking-widest text-[var(--app-text-3)]">
                 Editor
               </p>
 
               {/* Vim mode toggle */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-[12px] font-sans text-[var(--text)]">Vim mode</p>
-                  <p className="text-[11px] font-sans text-[var(--text-3)] mt-0.5">
+                  <p className="text-[12px] font-sans text-[var(--app-text-1)]">Vim mode</p>
+                  <p className="text-[11px] font-sans text-[var(--app-text-3)] mt-0.5">
                     Ativa keybindings do Vim no editor
                   </p>
                 </div>
                 <button
                   className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative shrink-0 ${
-                    vimMode ? 'bg-[var(--accent)]' : 'bg-[var(--surface-3)]'
+                    vimMode ? 'bg-[var(--app-accent)]' : 'bg-white/10'
                   }`}
                   onClick={handleVimToggle}
                 >
@@ -156,9 +157,9 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
 
               {/* Font family */}
               <div>
-                <p className="text-[11px] font-sans text-[var(--text-3)] mb-1.5">Fonte</p>
+                <p className="text-[11px] font-sans text-[var(--app-text-3)] mb-1.5">Fonte</p>
                 <select
-                  className="w-full px-2.5 py-1.5 bg-[var(--surface-2)] border border-[var(--border-2)] text-[var(--text-2)] rounded text-[11px] font-sans cursor-pointer focus:outline-none focus:border-[var(--accent)] transition-colors"
+                  className="w-full px-2.5 py-1.5 bg-white/[0.04] border-[0.5px] border-[var(--app-border)] text-[var(--app-text-2)] rounded text-[11px] font-sans cursor-pointer focus:outline-none focus:border-[var(--app-accent)] transition-colors"
                   value={fontFamily}
                   onChange={(e) => handleFontFamily(e.target.value)}
                 >
@@ -173,8 +174,8 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
               {/* Font size */}
               <div>
                 <div className="flex justify-between mb-1.5">
-                  <p className="text-[11px] font-sans text-[var(--text-3)]">Tamanho da fonte</p>
-                  <span className="text-[11px] font-sans text-[var(--text-2)]">{fontSize}px</span>
+                  <p className="text-[11px] font-sans text-[var(--app-text-3)]">Tamanho da fonte</p>
+                  <span className="text-[11px] font-sans text-[var(--app-text-2)]">{fontSize}px</span>
                 </div>
                 <input
                   type="range"
@@ -183,23 +184,15 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                   step={1}
                   value={fontSize}
                   onChange={(e) => handleFontSize(Number(e.target.value))}
-                  className="w-full accent-[var(--accent)] cursor-pointer"
+                  className="w-full accent-[var(--app-accent)] cursor-pointer"
                 />
-                <div className="flex justify-between mt-1">
-                  <span className="text-[10px] font-sans text-[var(--text-4)]">12px</span>
-                  <span className="text-[10px] font-sans text-[var(--text-4)]">20px</span>
-                </div>
               </div>
 
               {/* Line height */}
               <div>
                 <div className="flex justify-between mb-1.5">
-                  <p className="text-[11px] font-sans text-[var(--text-3)]">
-                    Espaçamento entre linhas
-                  </p>
-                  <span className="text-[11px] font-sans text-[var(--text-2)]">
-                    {lineHeight.toFixed(1)}
-                  </span>
+                  <p className="text-[11px] font-sans text-[var(--app-text-3)]">Espaçamento entre linhas</p>
+                  <span className="text-[11px] font-sans text-[var(--app-text-2)]">{lineHeight.toFixed(1)}</span>
                 </div>
                 <input
                   type="range"
@@ -208,33 +201,27 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                   step={0.1}
                   value={lineHeight}
                   onChange={(e) => handleLineHeight(Number(e.target.value))}
-                  className="w-full accent-[var(--accent)] cursor-pointer"
+                  className="w-full accent-[var(--app-accent)] cursor-pointer"
                 />
-                <div className="flex justify-between mt-1">
-                  <span className="text-[10px] font-sans text-[var(--text-4)]">1.4</span>
-                  <span className="text-[10px] font-sans text-[var(--text-4)]">2.0</span>
-                </div>
               </div>
             </div>
           )}
 
-          {section === 'sync' && isSync && (
+          {section === 'sync' && (
             <div className="space-y-5">
-              <p className="text-[11px] font-sans uppercase tracking-widest text-[var(--text-3)]">
+              <p className="text-[11px] font-sans uppercase tracking-widest text-[var(--app-text-3)]">
                 Sincronização
               </p>
-              <p className="text-[11px] font-sans text-[var(--text-3)]">
-                Configure o sync no painel de sync (ícone na topbar).
-              </p>
               <div>
-                <p className="text-[11px] font-sans text-[var(--text-3)] mb-1.5">
-                  Intervalo auto-sync
+                <p className="text-[12px] font-sans text-[var(--app-text-1)] mb-1">Intervalo de auto-sync</p>
+                <p className="text-[11px] font-sans text-[var(--app-text-3)] mb-3">
+                  Com que frequência suas notas são sincronizadas com o GitHub.
                 </p>
                 <div className="flex gap-1.5 flex-wrap">
                   {[0, 5, 15, 30].map((min) => (
                     <button
                       key={min}
-                      className="px-3 py-1.5 rounded text-[11px] font-sans border border-[var(--border-2)] text-[var(--text-2)] hover:border-[var(--accent)] hover:text-[var(--text)] cursor-pointer transition-colors"
+                      className="px-3 py-1.5 rounded text-[11px] font-sans border-[0.5px] border-[var(--app-border)] text-[var(--app-text-2)] hover:border-[var(--app-accent)] hover:text-[var(--app-text-1)] cursor-pointer transition-colors bg-white/[0.04]"
                       onClick={() => {
                         if (min === 0) {
                           window.electronAPI.sync.stopAutoSync()
@@ -248,58 +235,80 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                   ))}
                 </div>
               </div>
+              <div>
+                <p className="text-[12px] font-sans text-[var(--app-text-1)] mb-1">Sync manual</p>
+                <p className="text-[11px] font-sans text-[var(--app-text-3)] mb-3">
+                  Forçar sincronização agora.
+                </p>
+                <button
+                  className="px-3 py-1.5 rounded text-[11px] font-sans border-[0.5px] border-[var(--app-accent)] text-[var(--app-accent)] bg-[var(--app-accent-dim)] cursor-pointer hover:brightness-110 transition-all"
+                  onClick={() => {
+                    window.electronAPI.sync.push()
+                  }}
+                >
+                  Sincronizar agora
+                </button>
+              </div>
             </div>
           )}
 
-          {section === 'profile' && isSync && (
+          {section === 'profile' && (
             <div className="space-y-5">
-              <p className="text-[11px] font-sans uppercase tracking-widest text-[var(--text-3)]">
+              <p className="text-[11px] font-sans uppercase tracking-widest text-[var(--app-text-3)]">
                 Perfil
               </p>
 
               {profile ? (
                 <div className="flex items-center gap-3">
-                  <img
-                    src={profile.avatar_url}
-                    alt={profile.login}
-                    className="w-9 h-9 rounded-full"
-                  />
+                  {profile.avatar_url && (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile.login}
+                      className="w-10 h-10 rounded-full"
+                    />
+                  )}
                   <div>
-                    <p className="text-[12px] font-sans text-[var(--text)]">
+                    <p className="text-[13px] font-sans text-[var(--app-text-1)] font-medium">
                       {profile.name ?? profile.login}
                     </p>
-                    <p className="text-[11px] font-sans text-[var(--text-3)] mt-0.5">
+                    <p className="text-[11px] font-sans text-[var(--app-text-3)] mt-0.5">
                       @{profile.login}
                     </p>
                   </div>
                 </div>
               ) : (
-                <p className="text-[11px] font-sans text-[var(--text-3)]">Não autenticado</p>
+                <p className="text-[11px] font-sans text-[var(--app-text-3)]">Não autenticado</p>
               )}
 
-              {profile && (
-                <button
-                  className="px-3 py-1.5 bg-red-400/10 text-red-400 border border-red-400/20 rounded text-[11px] font-sans cursor-pointer hover:bg-red-400/20 transition-colors"
-                  onClick={async () => {
-                    await window.electronAPI.auth.logoutFull()
-                    logout()
-                    onClose()
-                  }}
-                >
-                  Sair da conta GitHub
-                </button>
-              )}
+              <div className="h-[0.5px] bg-[var(--app-border)]" />
+
+              <div>
+                <p className="text-[12px] font-sans text-[var(--app-text-1)] mb-1">Versão</p>
+                <p className="text-[11px] font-sans text-[var(--app-text-3)]">Hai v1.0.0</p>
+              </div>
+
+              <div className="h-[0.5px] bg-[var(--app-border)]" />
+
+              <button
+                className="px-3 py-1.5 bg-red-400/10 text-red-400 border-[0.5px] border-red-400/20 rounded text-[11px] font-sans cursor-pointer hover:bg-red-400/20 transition-colors"
+                onClick={handleLogout}
+              >
+                Sair da conta
+              </button>
+
+              <button
+                className="px-3 py-1.5 bg-white/[0.04] text-[var(--app-text-2)] border-[0.5px] border-[var(--app-border)] rounded text-[11px] font-sans cursor-pointer hover:bg-[var(--app-hover)] transition-colors ml-2"
+                onClick={() => window.electronAPI.app.quit()}
+              >
+                Encerrar aplicação
+              </button>
             </div>
-          )}
-
-          {section === 'mode' && (
-            <ModeSettingsSection onRequestLogin={() => {/* handled inside */}} />
           )}
         </div>
 
         {/* Close button */}
         <button
-          className="absolute top-3.5 right-3.5 w-6 h-6 flex items-center justify-center rounded text-[var(--text-3)] hover:text-[var(--text-2)] hover:bg-[var(--surface-3)] text-[11px] cursor-pointer transition-colors"
+          className="absolute top-3.5 right-3.5 w-6 h-6 flex items-center justify-center rounded text-[var(--app-text-3)] hover:text-[var(--app-text-1)] hover:bg-[var(--app-hover)] text-[11px] cursor-pointer transition-colors"
           onClick={onClose}
           aria-label="Fechar"
         >

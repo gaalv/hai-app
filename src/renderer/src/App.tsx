@@ -3,7 +3,6 @@ import { QuickCapture } from './windows/QuickCapture'
 import { LoginScreen } from './components/layout/LoginScreen'
 import { RepoSetupScreen } from './components/layout/RepoSetupScreen'
 import { AppLayout } from './components/layout/AppLayout'
-import { ProfileModal } from './components/profile/ProfileModal'
 import { useAuthStore } from './stores/auth.store'
 import type { GitHubProfile } from './types/auth'
 
@@ -17,7 +16,6 @@ function App(): JSX.Element {
 
   const [screen, setScreen] = useState<Screen>('checking')
   const [tab, setTab] = useState<Tab>('notes')
-  const [profileOpen, setProfileOpen] = useState(false)
   const { setProfile, logout } = useAuthStore()
 
   useEffect(() => {
@@ -76,12 +74,6 @@ function App(): JSX.Element {
     })
   }
 
-  function handleLogout(): void {
-    window.electronAPI.auth.logout()
-    logout()
-    setScreen('login')
-  }
-
   if (screen === 'checking') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[var(--app-main)] font-sans">
@@ -99,19 +91,10 @@ function App(): JSX.Element {
   }
 
   return (
-    <>
-      <AppLayout
-        tab={tab}
-        setTab={setTab}
-        onAvatarClick={() => setProfileOpen(true)}
-      />
-      {profileOpen && (
-        <ProfileModal
-          onClose={() => setProfileOpen(false)}
-          onLogout={handleLogout}
-        />
-      )}
-    </>
+    <AppLayout
+      tab={tab}
+      setTab={setTab}
+    />
   )
 }
 

@@ -124,24 +124,6 @@ export function EditorPanel(): JSX.Element {
     <div
       className="flex flex-col overflow-hidden flex-1 bg-[var(--app-main)]"
     >
-      {/* Topbar */}
-      <div
-        className="flex items-center shrink-0 px-6 py-[10px] border-b-[0.5px] border-b-[var(--app-border)] gap-2"
-      >
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1 text-[12px] text-[var(--app-text-3)]">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-            <rect x="1" y="1" width="4" height="4" rx="0.8" fill="currentColor" fillOpacity="0.4"/>
-            <rect x="7" y="1" width="4" height="4" rx="0.8" fill="currentColor" fillOpacity="0.4"/>
-            <rect x="1" y="7" width="4" height="4" rx="0.8" fill="currentColor" fillOpacity="0.4"/>
-            <rect x="7" y="7" width="4" height="4" rx="0.8" fill="currentColor" fillOpacity="0.4"/>
-          </svg>
-          <span className="text-[var(--app-text-2)]">
-            {extractTitle(frontmatter) || 'Sem título'}
-          </span>
-        </div>
-      </div>
-
       {/* Content area */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Metadata header */}
@@ -200,6 +182,7 @@ export function EditorPanel(): JSX.Element {
         {/* CodeMirror editor */}
         <div className="flex-1 overflow-hidden max-w-[720px] w-full mx-auto">
           <CodeMirrorEditor
+            key={activeNote.path}
             initialContent={body}
             onChange={handleBodyChange}
           />

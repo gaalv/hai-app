@@ -16,10 +16,9 @@ type Tab = 'notes' | 'notebooks' | 'search' | 'tags'
 interface AppLayoutProps {
   tab: Tab
   setTab: (tab: Tab) => void
-  onAvatarClick: () => void
 }
 
-export function AppLayout({ tab, setTab, onAvatarClick }: AppLayoutProps): JSX.Element {
+export function AppLayout({ tab, setTab }: AppLayoutProps): JSX.Element {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -27,6 +26,7 @@ export function AppLayout({ tab, setTab, onAvatarClick }: AppLayoutProps): JSX.E
   const handleToggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
   const handleToggleCalendar = useCallback(() => setCalendarOpen((v) => !v), [])
   const handleSearchClick = useCallback(() => setTab('search'), [setTab])
+  const handleOpenSettings = useCallback(() => setSettingsOpen(true), [])
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[var(--app-main)] text-[var(--app-text-1)] text-[13px] font-sans antialiased select-none">
@@ -43,8 +43,8 @@ export function AppLayout({ tab, setTab, onAvatarClick }: AppLayoutProps): JSX.E
         <Rail
           activeTab={tab}
           onTabChange={(t) => setTab(t as Tab)}
-          onAvatarClick={onAvatarClick}
-          onSettingsClick={() => setSettingsOpen(true)}
+          onAvatarClick={handleOpenSettings}
+          onSettingsClick={handleOpenSettings}
         />
 
         {/* Panel host */}
