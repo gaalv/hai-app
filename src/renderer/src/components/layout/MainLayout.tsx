@@ -15,6 +15,7 @@ import { Statusbar } from './Statusbar'
 import { CommandPalette } from '../search/CommandPalette'
 import { SettingsModal } from '../settings/SettingsModal'
 import { useAuthStore } from '../../stores/auth.store'
+import { useSyncMode } from '../../hooks/useSyncMode'
 
 export function MainLayout(): JSX.Element {
   const vaultPath = useVaultStore((s) => s.config?.path ?? '')
@@ -24,6 +25,7 @@ export function MainLayout(): JSX.Element {
   const { sidebarOpen, focusMode, toggleSidebar, toggleFocusMode } = useUIStore()
   const { load: loadManifest } = useManifestStore()
   const { profile } = useAuthStore()
+  const { isSync } = useSyncMode()
   const [syncPanelOpen, setSyncPanelOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -126,11 +128,13 @@ export function MainLayout(): JSX.Element {
               {sidebarOpen ? '⇥' : '⇤'}
             </button>
 
-            {/* Sync badge */}
-            <div className="relative">
-              <SyncStatusBadge onClick={() => setSyncPanelOpen((o) => !o)} />
-              {syncPanelOpen && <SyncPanel onClose={() => setSyncPanelOpen(false)} />}
-            </div>
+            {/* Sync badge — only in sync mode */}
+            {isSync && (
+              <div className="relative">
+                <SyncStatusBadge onClick={() => setSyncPanelOpen((o) => !o)} />
+                {syncPanelOpen && <SyncPanel onClose={() => setSyncPanelOpen(false)} />}
+              </div>
+            )}
           </div>
         </div>
       )}

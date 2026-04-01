@@ -1,17 +1,66 @@
 import { useState } from 'react'
 import { useUIStore } from '../../stores/ui.store'
 import { useAuthStore } from '../../stores/auth.store'
+import { useSyncMode } from '../../hooks/useSyncMode'
+import { updateFontTheme } from '../../editor/extensions/fontTheme'
+import { toggleVimMode } from '../../editor/extensions/vimMode'
+import { getActiveEditorView } from '../../editor/editorViewRef'
+import { ModeSettingsSection } from './ModeSettingsSection'
 
 interface Props {
   onClose: () => void
 }
 
-type Section = 'profile' | 'editor' | 'sync' | 'appearance'
+type Section = 'profile' | 'editor' | 'sync' | 'appearance' | 'mode'
+
+const FONT_OPTIONS = [
+  { label: 'JetBrains Mono', value: "'JetBrains Mono', monospace" },
+  { label: 'Fira Code', value: "'Fira Code', monospace" },
+  { label: 'Cascadia Code', value: "'Cascadia Code', monospace" },
+  { label: 'Monospace do sistema', value: 'monospace' }
+]
 
 export function SettingsModal({ onClose }: Props): JSX.Element {
   const [section, setSection] = useState<Section>('appearance')
-  const { theme, vimMode, setTheme, toggleVimMode } = useUIStore()
+  const { isSync } = useSyncMode()
+  const {
+    theme,
+    vimMode,
+    fontFamily,
+    fontSize,
+    lineHeight,
+    setTheme,
+    toggleVimMode: storeToggleVimMode,
+    setFontFamily,
+    setFontSize,
+    setLineHeight
+  } = useUIStore()
   const { profile, logout } = useAuthStore()
+
+  function handleVimToggle(): void {
+    const newVal = !vimMode
+    storeToggleVimMode()
+    const view = getActiveEditorView()
+    if (view) toggleVimMode(view, newVal)
+  }
+
+  function handleFontFamily(value: string): void {
+    setFontFamily(value)
+    const view = getActiveEditorView()
+    if (view) updateFontTheme(view, value, fontSize, lineHeight)
+  }
+
+  function handleFontSize(value: number): void {
+    setFontSize(value)
+    const view = getActiveEditorView()
+    if (view) updateFontTheme(view, fontFamily, value, lineHeight)
+  }
+
+  function handleLineHeight(value: number): void {
+    setLineHeight(value)
+    const view = getActiveEditorView()
+    if (view) updateFontTheme(view, fontFamily, fontSize, value)
+  }
 
   const navItem = (s: Section, label: string) => (
     <button
@@ -30,7 +79,7 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[200]" onClick={onClose}>
       <div
-        className="bg-[var(--surface)] border border-[var(--border-2)] rounded-xl w-[620px] h-[420px] flex overflow-hidden shadow-2xl"
+        className="bg-[var(--surface)] border border-[var(--border-2)] rounded-xl w-[620px] h-[460px] flex overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sidebar nav */}
@@ -38,8 +87,9 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
           <p className="text-[10px] text-[var(--text-4)] uppercase tracking-widest px-3 py-1 mb-1">Configurações</p>
           {navItem('appearance', 'Aparência')}
           {navItem('editor', 'Editor')}
-          {navItem('sync', 'Sync')}
-          {navItem('profile', 'Perfil')}
+          {isSync && navItem('sync', 'Sync')}
+          {isSync && navItem('profile', 'Perfil')}
+          {navItem('mode', 'Modo')}
         </div>
 
         {/* Content */}
@@ -73,6 +123,7 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
             <div className="space-y-5">
               <h2 className="text-sm font-semibold text-[var(--text)]">Editor</h2>
 
+              {/* Vim mode toggle */}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[var(--text)]">Vim mode</p>
@@ -82,7 +133,7 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                   className={`w-10 h-6 rounded-full transition-colors cursor-pointer relative ${
                     vimMode ? 'bg-[var(--accent)]' : 'bg-[var(--surface-3)]'
                   }`}
-                  onClick={toggleVimMode}
+                  onClick={handleVimToggle}
                 >
                   <span
                     className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
@@ -92,11 +143,60 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                 </button>
               </div>
 
+              {/* Font family */}
               <div>
-                <p className="text-xs text-[var(--text-3)] mt-4">
-                  Fonte: <span className="text-[var(--text-2)]">JetBrains Mono 14px</span>
-                </p>
-                <p className="text-xs text-[var(--text-4)] mt-1">Configuração de fonte e tamanho em breve</p>
+                <label className="block text-xs text-[var(--text-3)] mb-2">Fonte</label>
+                <select
+                  className="w-full px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-2)] text-[var(--text-2)] rounded-lg text-xs cursor-pointer focus:outline-none focus:border-[var(--accent)]"
+                  value={fontFamily}
+                  onChange={(e) => handleFontFamily(e.target.value)}
+                >
+                  {FONT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Font size */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-xs text-[var(--text-3)]">Tamanho da fonte</label>
+                  <span className="text-xs text-[var(--text-2)]">{fontSize}px</span>
+                </div>
+                <input
+                  type="range"
+                  min={12}
+                  max={20}
+                  step={1}
+                  value={fontSize}
+                  onChange={(e) => handleFontSize(Number(e.target.value))}
+                  className="w-full accent-[var(--accent)] cursor-pointer"
+                />
+                <div className="flex justify-between mt-1">
+                  <span className="text-[10px] text-[var(--text-4)]">12px</span>
+                  <span className="text-[10px] text-[var(--text-4)]">20px</span>
+                </div>
+              </div>
+
+              {/* Line height */}
+              <div>
+                <div className="flex justify-between mb-2">
+                  <label className="text-xs text-[var(--text-3)]">Espaçamento entre linhas</label>
+                  <span className="text-xs text-[var(--text-2)]">{lineHeight.toFixed(1)}</span>
+                </div>
+                <input
+                  type="range"
+                  min={1.4}
+                  max={2.0}
+                  step={0.1}
+                  value={lineHeight}
+                  onChange={(e) => handleLineHeight(Number(e.target.value))}
+                  className="w-full accent-[var(--accent)] cursor-pointer"
+                />
+                <div className="flex justify-between mt-1">
+                  <span className="text-[10px] text-[var(--text-4)]">1.4</span>
+                  <span className="text-[10px] text-[var(--text-4)]">2.0</span>
+                </div>
               </div>
             </div>
           )}
@@ -122,6 +222,10 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                 </div>
               </div>
             </div>
+          )}
+
+          {section === 'mode' && (
+            <ModeSettingsSection onRequestLogin={() => { /* handled inside */ }} />
           )}
 
           {section === 'profile' && (
