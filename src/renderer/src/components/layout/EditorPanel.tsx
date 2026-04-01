@@ -21,9 +21,39 @@ function extractTitle(frontmatter: string): string {
 }
 
 function extractTags(frontmatter: string): string[] {
-  const match = frontmatter.match(/^tags:\s*\[([^\]]*)\]/m)
-  if (!match) return []
-  return match[1].split(',').map((t) => t.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
+  // Inline format: tags: ["a", "b"] or tags: [a, b]
+  const inlineMatch = frontmatter.match(/^tags:\s*\[([^\]]*)\]/m)
+  if (inlineMatch) {
+    return inlineMatch[1].split(',').map((t) => t.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
+  }
+  // YAML list format: tags:\n  - a\n  - b
+  const listMatch = frontmatter.match(/^tags:\s*\n((?:\s+-\s+.+\n?)+)/m)
+  if (listMatch) {
+    return listMatch[1]
+      .split('\n')
+      .map((l) => l.replace(/^\s+-\s+/, '').trim().replace(/^['"]|['"]$/g, ''))
+      .filter(Boolean)
+  }
+  return []
+}
+
+// Replace tags in frontmatter, handling both YAML list and inline formats
+function replaceTags(frontmatter: string, newTags: string[]): string {
+  const tagStr = `[${newTags.map((t) => `"${t}"`).join(', ')}]`
+  // Match inline format
+  if (frontmatter.match(/^tags:\s*\[/m)) {
+    return frontmatter.replace(/^tags:\s*\[.*\]/m, `tags: ${tagStr}`)
+  }
+  // Match YAML list format (tags: followed by indented - items)
+  if (frontmatter.match(/^tags:\s*\n(\s+-)/m)) {
+    return frontmatter.replace(/^tags:\s*\n(?:\s+-\s+.+\n?)*/m, `tags: ${tagStr}`)
+  }
+  // No tags field — append
+  if (!frontmatter.match(/^tags:/m)) {
+    return frontmatter + `\ntags: ${tagStr}`
+  }
+  // tags: (empty or other)
+  return frontmatter.replace(/^tags:.*$/m, `tags: ${tagStr}`)
 }
 
 function extractDate(frontmatter: string): string {
@@ -102,16 +132,12 @@ export function EditorPanel(): JSX.Element {
   const handleAddTag = useCallback((newTag: string) => {
     const note = activeNoteRef.current
     if (!note) return
-    const tag = newTag.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '')
+    const tag = newTag.trim().toLowerCase()
     if (!tag) return
     const { frontmatter, body } = splitFrontmatter(note.content)
     const currentTags = extractTags(frontmatter)
     if (currentTags.includes(tag)) return
-    const updatedTags = [...currentTags, tag]
-    const tagStr = `[${updatedTags.map((t) => `"${t}"`).join(', ')}]`
-    const updatedFrontmatter = frontmatter.match(/^tags:/m)
-      ? frontmatter.replace(/^tags:\s*\[.*\]/m, `tags: ${tagStr}`)
-      : frontmatter + `\ntags: ${tagStr}`
+    const updatedFrontmatter = replaceTags(frontmatter, [...currentTags, tag])
     const newContent = `---\n${updatedFrontmatter}\n---\n\n${body}`
     setContent(newContent)
   }, [setContent])
@@ -121,8 +147,7 @@ export function EditorPanel(): JSX.Element {
     if (!note) return
     const { frontmatter, body } = splitFrontmatter(note.content)
     const currentTags = extractTags(frontmatter).filter((t) => t !== tagToRemove)
-    const tagStr = `[${currentTags.map((t) => `"${t}"`).join(', ')}]`
-    const updatedFrontmatter = frontmatter.replace(/^tags:\s*\[.*\]/m, `tags: ${tagStr}`)
+    const updatedFrontmatter = replaceTags(frontmatter, currentTags)
     const newContent = `---\n${updatedFrontmatter}\n---\n\n${body}`
     setContent(newContent)
   }, [setContent])
@@ -157,7 +182,7 @@ export function EditorPanel(): JSX.Element {
       {/* Content area */}
       <div className="flex-1 overflow-hidden flex flex-col">
         {/* Metadata header */}
-        <div className="shrink-0 pt-8 px-6 max-w-[720px] w-full mx-auto">
+        <div className="shrink-0 pt-8 px-6 max-w-[720px] w-full mx-auto overflow-visible relative z-10">
           {/* Tags — interactive */}
           <TagBar tags={tags} availableTags={manifestTags} onAdd={handleAddTag} onRemove={handleRemoveTag} />
 

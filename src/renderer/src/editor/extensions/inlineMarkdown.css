@@ -8,3 +8,18 @@
 .cm-link-text { color: var(--color-primary); text-decoration: underline; cursor: pointer; }
 .cm-list-bullet { color: transparent; }
 .cm-list-bullet::before { content: '•'; color: var(--color-muted); }
+
+/* Task list checkboxes */
+.cm-task-unchecked { color: transparent; position: relative; }
+.cm-task-unchecked::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; border: 1.5px solid var(--app-text-3, #888); border-radius: 3px; cursor: pointer; }
+.cm-task-checked { color: transparent; position: relative; }
+.cm-task-checked::before { content: '✓'; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; border: 1.5px solid var(--app-accent, #7C6EF5); border-radius: 3px; background: var(--app-accent, #7C6EF5); color: white; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+/* Strikethrough */
+.cm-strikethrough { text-decoration: line-through; opacity: 0.5; }
+
+/* Horizontal rule */
+.cm-hr { display: block; border: none; border-bottom: 1px solid var(--app-border, #333); color: transparent; margin: 8px 0; }
+
+/* Blockquote */
+.cm-blockquote-mark { color: var(--app-accent, #7C6EF5); font-weight: 700; }

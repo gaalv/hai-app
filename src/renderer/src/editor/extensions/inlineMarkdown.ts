@@ -164,6 +164,37 @@ function buildDecorations(view: EditorView): DecorationSet {
             }
           }
         }
+
+        // ── Task list checkboxes ── [ ] and [x] ─────────
+        if (node.name === 'TaskMarker') {
+          const text = view.state.doc.sliceString(nFrom, nTo)
+          const checked = text.includes('x') || text.includes('X')
+          mark(nFrom, nTo, checked ? 'cm-task-checked' : 'cm-task-unchecked')
+        }
+
+        // ── Strikethrough ~~text~~ ───────────────────────
+        if (node.name === 'Strikethrough') {
+          const onLine = cursorOnLine(view, nFrom)
+          mark(nFrom, nTo, 'cm-strikethrough')
+
+          if (!onLine) {
+            node.node.cursor().iterate((child) => {
+              if (child.name === 'StrikethroughMark') {
+                hide(child.from, child.to)
+              }
+            })
+          }
+        }
+
+        // ── Horizontal rule ──────────────────────────────
+        if (node.name === 'HorizontalRule') {
+          mark(nFrom, nTo, 'cm-hr')
+        }
+
+        // ── Blockquote marker > ──────────────────────────
+        if (node.name === 'QuoteMark') {
+          mark(nFrom, nTo, 'cm-blockquote-mark')
+        }
       }
     })
   }
@@ -186,27 +217,36 @@ function buildDecorations(view: EditorView): DecorationSet {
   return builder.finish()
 }
 
-// ── Click handler for links ────────────────────────────
+// ── Click handler for links and checkboxes ─────────────
 
-const linkClickHandler = EditorView.domEventHandlers({
+const clickHandler = EditorView.domEventHandlers({
   click(event, view) {
-    if (!event.metaKey && !event.ctrlKey) return false
-
     const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
     if (pos == null) return false
 
     const tree = syntaxTree(view.state)
+    const node = tree.resolve(pos, 1)
+
+    // Toggle task list checkboxes on click
+    if (node.name === 'TaskMarker') {
+      const text = view.state.doc.sliceString(node.from, node.to)
+      const replacement = text.includes('x') || text.includes('X') ? '[ ]' : '[x]'
+      view.dispatch({ changes: { from: node.from, to: node.to, insert: replacement } })
+      return true
+    }
+
+    // Links: Cmd/Ctrl+Click to open
+    if (!event.metaKey && !event.ctrlKey) return false
+
     let url: string | null = null
 
-    tree.resolve(pos, 1).cursor().iterate((node) => {
-      if (node.name === 'URL') {
-        url = view.state.doc.sliceString(node.from, node.to)
+    tree.resolve(pos, 1).cursor().iterate((n) => {
+      if (n.name === 'URL') {
+        url = view.state.doc.sliceString(n.from, n.to)
       }
     })
 
-    // Also check parent Link node for URL child
     if (!url) {
-      const node = tree.resolve(pos, 1)
       const linkNode = node.name === 'Link' ? node : node.parent
       if (linkNode && linkNode.name === 'Link') {
         linkNode.cursor().iterate((child) => {
@@ -219,7 +259,6 @@ const linkClickHandler = EditorView.domEventHandlers({
 
     const urlStr = url as string | null
     if (urlStr && (urlStr.startsWith('https://') || urlStr.startsWith('http://'))) {
-      // shell.openExternal not currently exposed — links are opened via setWindowOpenHandler
       return true
     }
 
@@ -246,5 +285,5 @@ export const inlineMarkdownExtension = [
     },
     { decorations: (v) => v.decorations }
   ),
-  linkClickHandler
+  clickHandler
 ]
