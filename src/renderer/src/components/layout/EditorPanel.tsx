@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useEditorStore } from '../../stores/editor.store'
 import { useNotesStore } from '../../stores/notes.store'
+import { useManifestStore } from '../../stores/manifest.store'
 import { CodeMirrorEditor } from '../editor/CodeMirrorEditor'
 
 // Simple frontmatter parser (no Node.js dependency needed)
@@ -52,6 +53,7 @@ function estimateReadTime(text: string): number {
 export function EditorPanel(): JSX.Element {
   const { activeNote, isDirty, setContent, save } = useEditorStore()
   const { updateNoteTitle } = useNotesStore()
+  const { tags: manifestTags } = useManifestStore()
   const saveTimer = useRef<NodeJS.Timeout | null>(null)
   const titleRef = useRef<HTMLDivElement>(null)
   const activeNoteRef = useRef(activeNote)
@@ -157,7 +159,7 @@ export function EditorPanel(): JSX.Element {
         {/* Metadata header */}
         <div className="shrink-0 pt-8 px-6 max-w-[720px] w-full mx-auto">
           {/* Tags — interactive */}
-          <TagBar tags={tags} onAdd={handleAddTag} onRemove={handleRemoveTag} />
+          <TagBar tags={tags} availableTags={manifestTags} onAdd={handleAddTag} onRemove={handleRemoveTag} />
 
           {/* Title — uncontrolled contentEditable, set via ref */}
           <div
@@ -213,68 +215,68 @@ export function EditorPanel(): JSX.Element {
 
 function TagBar({
   tags,
+  availableTags,
   onAdd,
   onRemove,
 }: {
   tags: string[]
+  availableTags: { name: string; label: string; color: string }[]
   onAdd: (tag: string) => void
   onRemove: (tag: string) => void
 }): JSX.Element {
-  const [inputValue, setInputValue] = useState('')
-  const [isAdding, setIsAdding] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+  const [filter, setFilter] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === 'Enter' && inputValue.trim()) {
-      onAdd(inputValue)
-      setInputValue('')
+  // Tags not yet on this note
+  const unassigned = availableTags.filter((t) => !tags.includes(t.name))
+  const filtered = unassigned.filter((t) =>
+    t.name.toLowerCase().includes(filter.toLowerCase()) ||
+    t.label.toLowerCase().includes(filter.toLowerCase())
+  )
+
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return
+    const handler = (e: MouseEvent): void => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+        setFilter('')
+      }
     }
-    if (e.key === 'Escape') {
-      setInputValue('')
-      setIsAdding(false)
-    }
-    if (e.key === 'Backspace' && !inputValue && tags.length > 0) {
-      onRemove(tags[tags.length - 1])
-    }
-  }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [isOpen])
 
   return (
     <div className="flex items-center flex-wrap gap-1.5 mb-5 min-h-[26px]">
-      {tags.map((tag) => (
-        <span
-          key={tag}
-          onClick={() => onRemove(tag)}
-          title="Clique para remover"
-          className="group/tag flex items-center gap-1 px-[9px] py-[3px] bg-[var(--app-tag-bg)] border-[0.5px] border-[var(--app-border-mid)] rounded-full text-[11.5px] text-[var(--app-accent)] cursor-pointer hover:border-[var(--app-accent)] transition-colors"
-        >
-          #{tag}
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 10 10"
-            fill="none"
-            className="opacity-0 group-hover/tag:opacity-60 transition-opacity"
+      {tags.map((tag) => {
+        const manifest = availableTags.find((t) => t.name === tag)
+        return (
+          <span
+            key={tag}
+            onClick={() => onRemove(tag)}
+            title="Clique para remover"
+            className="group/tag flex items-center gap-1 px-[9px] py-[3px] bg-[var(--app-tag-bg)] border-[0.5px] border-[var(--app-border-mid)] rounded-full text-[11.5px] text-[var(--app-accent)] cursor-pointer hover:border-[var(--app-accent)] transition-colors"
           >
-            <path d="M2.5 2.5l5 5M7.5 2.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          </svg>
-        </span>
-      ))}
-      {isAdding ? (
-        <input
-          autoFocus
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={() => {
-            if (inputValue.trim()) onAdd(inputValue)
-            setInputValue('')
-            setIsAdding(false)
-          }}
-          placeholder="nova tag…"
-          className="bg-transparent border-none outline-none text-[11.5px] text-[var(--app-text-1)] placeholder:text-[var(--app-text-3)] w-[80px]"
-        />
-      ) : (
+            {manifest?.color && (
+              <span className="w-[6px] h-[6px] rounded-full shrink-0" style={{ background: manifest.color }} />
+            )}
+            #{manifest?.label || tag}
+            <svg
+              width="10" height="10" viewBox="0 0 10 10" fill="none"
+              className="opacity-0 group-hover/tag:opacity-60 transition-opacity"
+            >
+              <path d="M2.5 2.5l5 5M7.5 2.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+          </span>
+        )
+      })}
+
+      {/* Add tag button + dropdown */}
+      <div className="relative" ref={dropdownRef}>
         <button
-          onClick={() => setIsAdding(true)}
+          onClick={() => { setIsOpen(!isOpen); setFilter('') }}
           className="flex items-center justify-center w-[22px] h-[22px] rounded-full bg-transparent border-[0.5px] border-dashed border-[var(--app-border-mid)] text-[var(--app-text-3)] hover:border-[var(--app-accent)] hover:text-[var(--app-accent)] transition-colors cursor-pointer"
           title="Adicionar tag"
         >
@@ -282,7 +284,49 @@ function TagBar({
             <path d="M5 2v6M2 5h6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
           </svg>
         </button>
-      )}
+
+        {isOpen && (
+          <div className="absolute left-0 top-full mt-1 z-50 min-w-[180px] bg-[var(--app-surface)] border border-[var(--app-border)] rounded-lg shadow-lg overflow-hidden">
+            {availableTags.length > 3 && (
+              <div className="p-1.5 border-b border-[var(--app-border)]">
+                <input
+                  autoFocus
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') { setIsOpen(false); setFilter('') }
+                    if (e.key === 'Enter' && filtered.length === 1) {
+                      onAdd(filtered[0].name)
+                      setIsOpen(false)
+                      setFilter('')
+                    }
+                  }}
+                  placeholder="Filtrar…"
+                  className="w-full bg-transparent border-none outline-none text-[11.5px] text-[var(--app-text-1)] placeholder:text-[var(--app-text-3)] px-1.5 py-1"
+                />
+              </div>
+            )}
+            <div className="max-h-[160px] overflow-y-auto py-1">
+              {filtered.length === 0 ? (
+                <div className="px-3 py-2 text-[11px] text-[var(--app-text-3)]">
+                  {unassigned.length === 0 ? 'Todas as tags já adicionadas' : 'Nenhuma tag encontrada'}
+                </div>
+              ) : (
+                filtered.map((t) => (
+                  <button
+                    key={t.name}
+                    onClick={() => { onAdd(t.name); setIsOpen(false); setFilter('') }}
+                    className="flex items-center gap-2 w-full px-3 py-[5px] text-left text-[11.5px] text-[var(--app-text-1)] hover:bg-[var(--app-hover)] transition-colors cursor-pointer bg-transparent border-none"
+                  >
+                    <span className="w-[8px] h-[8px] rounded-full shrink-0" style={{ background: t.color }} />
+                    {t.label}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

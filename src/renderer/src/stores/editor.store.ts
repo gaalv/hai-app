@@ -5,7 +5,9 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null
 function schedulePushAfterSave(): void {
   if (pushTimer) clearTimeout(pushTimer)
   pushTimer = setTimeout(() => {
-    window.electronAPI.sync.push().catch(() => {})
+    window.electronAPI.sync.push()
+      .then((r) => console.log('[sync] push after save:', r))
+      .catch((e) => console.error('[sync] push after save failed:', e))
   }, 10_000)
 }
 

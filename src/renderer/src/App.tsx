@@ -45,9 +45,10 @@ function App(): JSX.Element {
         // Background sync: pull latest then push local changes
         // Use .catch on pull so push still runs even if pull fails (e.g. no remote branch yet)
         window.electronAPI.sync.pull()
-          .catch(() => { /* ignore pull errors */ })
+          .catch((e) => console.warn('[sync] pull failed on startup:', e))
           .then(() => window.electronAPI.sync.push())
-          .catch(() => { /* ignore push errors on startup */ })
+          .then((r) => r && console.log('[sync] startup push:', r))
+          .catch((e) => console.error('[sync] push failed on startup:', e))
       } catch {
         setScreen('login')
       }

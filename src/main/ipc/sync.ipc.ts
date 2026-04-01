@@ -65,10 +65,16 @@ let autoSyncTimer: NodeJS.Timeout | null = null
 async function handlePush(message?: string): Promise<PushResult> {
   const vaultConfig = store.get('vaultConfig')
   const syncConfig = store.get('syncConfig')
-  if (!vaultConfig || !syncConfig) throw new Error('Vault ou sync não configurado')
+  if (!vaultConfig || !syncConfig) {
+    console.warn('[sync:push] vault or sync not configured')
+    throw new Error('Vault ou sync não configurado')
+  }
 
   const token = await getAuthToken()
-  if (!token) throw new Error('Token não encontrado. Configure o sync.')
+  if (!token) {
+    console.warn('[sync:push] no auth token found')
+    throw new Error('Token não encontrado. Configure o sync.')
+  }
 
   const statusMatrix = await git.statusMatrix({ fs: { promises: fs }, dir: vaultConfig.path })
   const modified = statusMatrix.filter(([, head, workdir, stage]) => workdir !== head || stage !== head)
@@ -77,15 +83,27 @@ async function handlePush(message?: string): Promise<PushResult> {
     return { filesCommitted: 0, commitHash: '', timestamp: new Date().toISOString() }
   }
 
-  await git.add({ fs: { promises: fs }, dir: vaultConfig.path, filepath: '.' })
+  console.log(`[sync:push] staging ${modified.length} files:`, modified.map(([f]) => f))
+
+  // Stage each modified file individually (more reliable than filepath '.')
+  for (const [filepath, , workdir] of modified) {
+    if (workdir === 0) {
+      await git.remove({ fs: { promises: fs }, dir: vaultConfig.path, filepath })
+    } else {
+      await git.add({ fs: { promises: fs }, dir: vaultConfig.path, filepath })
+    }
+  }
+
   const sha = await git.commit({
     fs: { promises: fs },
     dir: vaultConfig.path,
     message: message ?? `hai: sync ${new Date().toLocaleString('pt-BR')}`,
     author: { name: 'Hai', email: 'hai@local' }
   })
+  console.log(`[sync:push] committed ${sha}`)
 
   await git.push({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
+  console.log('[sync:push] pushed to origin')
 
   const timestamp = new Date().toISOString()
   store.set('syncConfig', { ...syncConfig, lastSync: timestamp } as never)
