@@ -3,7 +3,7 @@ import { useEditorStore } from '../../stores/editor.store'
 import { useVaultStore } from '../../stores/vault.store'
 import { manifestService } from '../../services/manifest'
 import { useState, useEffect } from 'react'
-import path from 'path'
+import { pathJoin, pathBasename } from '../../lib/path'
 
 interface ContextMenu {
   x: number
@@ -53,8 +53,8 @@ export function PinnedSection(): JSX.Element {
       {view === 'pinned' && (
         <div className="pl-5">
           {pinned.map((rel) => {
-            const absPath = path.join(vaultPath, rel)
-            const name = path.basename(rel, '.md')
+            const absPath = pathJoin(vaultPath, rel)
+            const name = pathBasename(rel, '.md')
             const isActive = absPath === activePath
             return (
               <div

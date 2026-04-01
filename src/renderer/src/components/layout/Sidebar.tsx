@@ -6,7 +6,7 @@ import { useUIStore } from '../../stores/ui.store'
 import { useManifestStore } from '../../stores/manifest.store'
 import type { FileNode } from '../../types/notes'
 import type { Notebook } from '../../types/manifest'
-import path from 'path'
+import { pathJoin, pathRelative } from '../../lib/path'
 
 // ── Context menu ──────────────────────────────────────────
 
@@ -110,7 +110,7 @@ export function Sidebar(): JSX.Element {
   }
 
   async function handleNewNote(notebookPath?: string): Promise<void> {
-    const dest = notebookPath ? path.join(vaultPath, notebookPath) : vaultPath
+    const dest = notebookPath ? pathJoin(vaultPath, notebookPath) : vaultPath
     const filePath = await window.electronAPI.notes.create(dest)
     useEditorStore.getState().openNote(filePath)
     refresh(vaultPath)
@@ -134,12 +134,12 @@ export function Sidebar(): JSX.Element {
     if (n.type === 'file') return [n]
     return (n.children ?? []).flatMap(flat)
   }).filter((n) => {
-    const rel = path.relative(vaultPath, n.path)
+    const rel = pathRelative(vaultPath, n.path)
     return manifest.pinned.includes(rel)
   })
 
   // Inbox notes
-  const inboxPath = path.join(vaultPath, manifest.inbox)
+  const inboxPath = pathJoin(vaultPath, manifest.inbox)
   const inboxNode = nodes.find((n) => n.type === 'dir' && n.path === inboxPath)
   const inboxCount = inboxNode?.children?.length ?? 0
 
@@ -156,7 +156,7 @@ export function Sidebar(): JSX.Element {
     if (view === 'notebook' && activeNotebook) {
       const nb = manifest.notebooks.find((n) => n.id === activeNotebook)
       if (!nb) return []
-      const nbAbsPath = path.join(vaultPath, nb.path)
+      const nbAbsPath = pathJoin(vaultPath, nb.path)
       const nbNode = nodes.find((n) => n.path === nbAbsPath)
       return nbNode?.children?.filter((n) => n.type === 'file') ?? []
     }
@@ -308,7 +308,7 @@ export function Sidebar(): JSX.Element {
         >
           {(() => {
             const node = (contextMenu.target as { type: 'note'; node: FileNode }).node
-            const rel = path.relative(vaultPath, node.path)
+            const rel = pathRelative(vaultPath, node.path)
             const isPinned = manifest.pinned.includes(rel)
             return (
               <>

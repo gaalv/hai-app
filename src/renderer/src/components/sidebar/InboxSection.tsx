@@ -2,7 +2,7 @@ import { useManifestStore } from '../../stores/manifest.store'
 import { useFileTreeStore } from '../../stores/fileTree.store'
 import { useEditorStore } from '../../stores/editor.store'
 import { useVaultStore } from '../../stores/vault.store'
-import path from 'path'
+import { pathJoin } from '../../lib/path'
 
 export function InboxSection(): JSX.Element {
   const { manifest, view, setView } = useManifestStore()
@@ -11,7 +11,7 @@ export function InboxSection(): JSX.Element {
   const openNote = useEditorStore((s) => s.openNote)
   const activePath = useEditorStore((s) => s.activeNote?.path ?? null)
 
-  const inboxAbsPath = path.join(vaultPath, manifest.inbox)
+  const inboxAbsPath = pathJoin(vaultPath, manifest.inbox)
   const inboxNode = nodes.find((n) => n.type === 'dir' && n.path === inboxAbsPath)
   const inboxNotes = inboxNode?.children?.filter((n) => n.type === 'file') ?? []
   const count = inboxNotes.length
