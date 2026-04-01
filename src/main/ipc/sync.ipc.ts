@@ -105,7 +105,17 @@ async function handlePush(message?: string): Promise<PushResult> {
   })
   console.log(`[sync:push] committed ${sha}`)
 
-  await git.push({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
+  try {
+    await git.push({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
+  } catch (pushErr: unknown) {
+    // If not-fast-forward (diverged history), force push — local is source of truth
+    if (pushErr && typeof pushErr === 'object' && 'code' in pushErr && (pushErr as { code: string }).code === 'PushRejectedError') {
+      console.warn('[sync:push] not-fast-forward, retrying with force')
+      await git.push({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', force: true, onAuth: getOnAuth(token) })
+    } else {
+      throw pushErr
+    }
+  }
   console.log('[sync:push] pushed to origin')
 
   const timestamp = new Date().toISOString()
