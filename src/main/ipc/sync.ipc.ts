@@ -82,33 +82,34 @@ async function handlePush(message?: string): Promise<PushResult> {
   const statusMatrix = await git.statusMatrix({ fs: { promises: fs }, dir: vaultConfig.path })
   const modified = statusMatrix.filter(([, head, workdir, stage]) => workdir !== head || stage !== head)
 
-  if (modified.length === 0) {
-    return { filesCommitted: 0, commitHash: '', timestamp: new Date().toISOString() }
-  }
+  let commitSha = ''
 
-  console.log(`[sync:push] staging ${modified.length} files:`, modified.map(([f]) => f))
+  if (modified.length > 0) {
+    console.log(`[sync:push] staging ${modified.length} files:`, modified.map(([f]) => f))
 
-  // Stage each modified file individually (more reliable than filepath '.')
-  for (const [filepath, , workdir] of modified) {
-    if (workdir === 0) {
-      await git.remove({ fs: { promises: fs }, dir: vaultConfig.path, filepath })
-    } else {
-      await git.add({ fs: { promises: fs }, dir: vaultConfig.path, filepath })
+    for (const [filepath, , workdir] of modified) {
+      if (workdir === 0) {
+        await git.remove({ fs: { promises: fs }, dir: vaultConfig.path, filepath })
+      } else {
+        await git.add({ fs: { promises: fs }, dir: vaultConfig.path, filepath })
+      }
     }
+
+    commitSha = await git.commit({
+      fs: { promises: fs },
+      dir: vaultConfig.path,
+      message: message ?? `hai: sync ${new Date().toLocaleString('pt-BR')}`,
+      author: { name: 'Hai', email: 'hai@local' }
+    })
+    console.log(`[sync:push] committed ${commitSha}`)
+  } else {
+    console.log('[sync:push] no local changes, checking for unpushed commits...')
   }
 
-  const sha = await git.commit({
-    fs: { promises: fs },
-    dir: vaultConfig.path,
-    message: message ?? `hai: sync ${new Date().toLocaleString('pt-BR')}`,
-    author: { name: 'Hai', email: 'hai@local' }
-  })
-  console.log(`[sync:push] committed ${sha}`)
-
+  // Always push — there may be previously committed but unpushed changes
   try {
     await git.push({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
   } catch (pushErr: unknown) {
-    // If not-fast-forward (diverged history), force push — local is source of truth
     if (pushErr && typeof pushErr === 'object' && 'code' in pushErr && (pushErr as { code: string }).code === 'PushRejectedError') {
       console.warn('[sync:push] not-fast-forward, retrying with force')
       await git.push({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', force: true, onAuth: getOnAuth(token) })
@@ -121,7 +122,7 @@ async function handlePush(message?: string): Promise<PushResult> {
   const timestamp = new Date().toISOString()
   store.set('syncConfig', { ...syncConfig, lastSync: timestamp } as never)
 
-  return { filesCommitted: modified.length, commitHash: sha, timestamp }
+  return { filesCommitted: modified.length, commitHash: commitSha, timestamp }
 }
 
 export function startAutoSync(intervalMinutes: number): void {
