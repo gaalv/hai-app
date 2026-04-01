@@ -8,7 +8,7 @@ export function StatusBar(): JSX.Element {
   const dotColor = isSaving ? 'bg-[#F5A623]' : isDirty ? 'bg-[#F87171]' : 'bg-[#3FD68F]'
 
   return (
-    <div className="flex items-center shrink-0 h-[22px] px-2 bg-[var(--app-rail)] border-t-[0.5px] border-t-[var(--app-border)] text-[11px] text-[var(--app-text-3)] select-none gap-3">
+    <div className="flex items-center justify-end shrink-0 h-[22px] px-2 bg-[var(--app-rail)] border-t-[0.5px] border-t-[var(--app-border)] text-[11px] text-[var(--app-text-3)] select-none gap-3">
       {/* Sync status */}
       <div className="flex items-center gap-[5px]">
         <span className={`w-[6px] h-[6px] rounded-full shrink-0 ${dotColor}`} />
