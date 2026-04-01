@@ -3,7 +3,6 @@ interface TitleBarProps {
   onToggleSidebar: () => void
   calendarOpen: boolean
   onToggleCalendar: () => void
-  onSearchClick: () => void
 }
 
 export function TitleBar({
@@ -11,7 +10,6 @@ export function TitleBar({
   onToggleSidebar,
   calendarOpen,
   onToggleCalendar,
-  onSearchClick,
 }: TitleBarProps): JSX.Element {
   return (
     <div className="h-[38px] shrink-0 flex items-center bg-[var(--app-rail)] border-b-[0.5px] border-b-[var(--app-border)] titlebar-drag select-none">
@@ -38,24 +36,8 @@ export function TitleBar({
         </button>
       </div>
 
-      {/* Center: search trigger */}
-      <div className="flex-1 flex justify-center px-4 titlebar-no-drag">
-        <button
-          onClick={onSearchClick}
-          className="flex items-center gap-2 px-2.5 py-[3px] max-w-[320px] w-full bg-white/[0.04] border-[0.5px] border-[var(--app-border-mid)] rounded-[var(--app-radius)] cursor-pointer hover:bg-white/[0.06] hover:border-[var(--app-border)] transition-colors"
-        >
-          <svg width="11" height="11" viewBox="0 0 14 14" fill="none" className="shrink-0 text-[var(--app-text-3)]">
-            <circle cx="6" cy="6" r="4" stroke="currentColor" strokeWidth="1.4" />
-            <line x1="9" y1="9" x2="12.5" y2="12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          </svg>
-          <span className="text-[11px] text-[var(--app-text-3)] flex-1 text-left truncate">
-            Buscar notas...
-          </span>
-          <span className="text-[9px] text-[var(--app-text-3)] bg-white/[0.06] border-[0.5px] border-[var(--app-border)] rounded px-[4px] py-px font-mono shrink-0 leading-tight">
-            ⌘K
-          </span>
-        </button>
-      </div>
+      {/* Spacer for drag area */}
+      <div className="flex-1" />
 
       {/* Right: calendar toggle */}
       <div className="flex items-center pr-3 pl-2 shrink-0 titlebar-no-drag">

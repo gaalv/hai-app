@@ -25,7 +25,6 @@ export function AppLayout({ tab, setTab }: AppLayoutProps): JSX.Element {
 
   const handleToggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
   const handleToggleCalendar = useCallback(() => setCalendarOpen((v) => !v), [])
-  const handleSearchClick = useCallback(() => setTab('search'), [setTab])
   const handleOpenSettings = useCallback(() => setSettingsOpen(true), [])
 
   return (
@@ -35,7 +34,6 @@ export function AppLayout({ tab, setTab }: AppLayoutProps): JSX.Element {
         onToggleSidebar={handleToggleSidebar}
         calendarOpen={calendarOpen}
         onToggleCalendar={handleToggleCalendar}
-        onSearchClick={handleSearchClick}
       />
 
       {/* Main content below titlebar */}

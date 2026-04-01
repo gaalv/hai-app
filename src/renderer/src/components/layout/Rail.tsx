@@ -27,10 +27,10 @@ export function Rail({ activeTab, onTabChange, onAvatarClick, onSettingsClick }:
         onClick={() => onTabChange('notes')}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.3"/>
-          <line x1="6" y1="5" x2="10" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-          <line x1="6" y1="7.5" x2="10" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-          <line x1="6" y1="10" x2="8.5" y2="10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          <rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor"/>
+          <rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor"/>
+          <rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor"/>
+          <rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor"/>
         </svg>
       </RailBtn>
 
@@ -41,10 +41,10 @@ export function Rail({ activeTab, onTabChange, onAvatarClick, onSettingsClick }:
         onClick={() => onTabChange('notebooks')}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor"/>
-          <rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor"/>
-          <rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor"/>
-          <rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor"/>
+          <path d="M4 2h8a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" strokeWidth="1.3"/>
+          <line x1="6" y1="5" x2="10" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          <line x1="6" y1="7.5" x2="10" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+          <line x1="6" y1="10" x2="8.5" y2="10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
         </svg>
       </RailBtn>
 
