@@ -140,6 +140,7 @@ ${htmlBody}
   ipcMain.handle('share:gist', async (_e, filePath: string, content: string) => {
     const keytar = await import('keytar')
     const token =
+      (await keytar.getPassword('hai', 'github-token')) ??
       (await keytar.getPassword('hai-github', 'oauth-token')) ??
       (await keytar.getPassword('hai', 'github-pat'))
 

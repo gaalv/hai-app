@@ -11,7 +11,10 @@ import type { PushResult, PullResult, SyncStatus, ConflictFile } from '../../ren
 // ── Auth helpers ─────────────────────────────────────────
 
 async function getAuthToken(): Promise<string | null> {
-  // Try OAuth token first (from device flow auth), fall back to PAT
+  // Primary: token stored by auth flow (service: 'hai', key: 'github-token')
+  const token = await keytar.getPassword('hai', 'github-token')
+  if (token) return token
+  // Fallback: legacy keys
   const oauth = await keytar.getPassword('hai-github', 'oauth-token')
   if (oauth) return oauth
   return getPassword('github-pat')
