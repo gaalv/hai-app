@@ -29,6 +29,13 @@
   --app-tag-bg: rgba(255,255,255,0.06);
   --app-tag-text: #9090B0;
   --app-radius: 6px;
+  --app-surface: #1A1A22;
+
+  /* Editor tokens */
+  --color-heading: #EEEEF2;
+  --color-primary: #7C6EF5;
+  --color-muted: #505062;
+  --bg-elevated: rgba(255,255,255,0.06);
 }
 
 /* ── Dark theme (default) ─────────────────────────────── */
@@ -89,6 +96,12 @@
   --success: #16a34a;
   --warning: #ca8a04;
   --error:   #dc2626;
+
+  /* Editor tokens (light) */
+  --color-heading: #111111;
+  --color-primary: oklch(0.50 0.22 288);
+  --color-muted: #999999;
+  --bg-elevated: rgba(0,0,0,0.05);
 }
 
 /* ── Base ─────────────────────────────────────────────── */

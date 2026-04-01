@@ -327,6 +327,15 @@ export function registerManifestHandlers(): void {
     const newPath = path.join(destDir, path.basename(absolutePath))
     await fs.rename(absolutePath, newPath)
 
+    // Update pinned paths if this note was pinned
+    const oldRel = path.relative(vaultPath, absolutePath)
+    const newRel = path.relative(vaultPath, newPath)
+    const pinIdx = manifest.pinned.indexOf(oldRel)
+    if (pinIdx !== -1) {
+      manifest.pinned[pinIdx] = newRel
+      await saveManifest(vaultPath, manifest)
+    }
+
     await updateNoteFrontmatter(newPath, { notebook: notebookId ?? undefined })
     return newPath
   })

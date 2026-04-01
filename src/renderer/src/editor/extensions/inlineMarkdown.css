@@ -2,6 +2,9 @@
 .cm-h1 { font-size: 1.8em; font-weight: 700; color: var(--color-heading); }
 .cm-h2 { font-size: 1.5em; font-weight: 600; color: var(--color-heading); }
 .cm-h3 { font-size: 1.3em; font-weight: 600; color: var(--color-heading); }
+.cm-h4 { font-size: 1.1em; font-weight: 600; color: var(--color-heading); }
+.cm-h5 { font-size: 0.95em; font-weight: 600; color: var(--color-heading); }
+.cm-h6 { font-size: 0.85em; font-weight: 600; color: var(--color-heading); }
 .cm-bold { font-weight: 700; }
 .cm-italic { font-style: italic; }
 .cm-inline-code { background: var(--bg-elevated); border-radius: 3px; padding: 0 3px; font-size: 0.9em; }
@@ -11,15 +14,15 @@
 
 /* Task list checkboxes */
 .cm-task-unchecked { color: transparent; position: relative; }
-.cm-task-unchecked::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; border: 1.5px solid var(--app-text-3, #888); border-radius: 3px; cursor: pointer; }
+.cm-task-unchecked::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; border: 1.5px solid var(--color-muted); border-radius: 3px; cursor: pointer; }
 .cm-task-checked { color: transparent; position: relative; }
-.cm-task-checked::before { content: '✓'; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; border: 1.5px solid var(--app-accent, #7C6EF5); border-radius: 3px; background: var(--app-accent, #7C6EF5); color: white; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.cm-task-checked::before { content: '✓'; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; border: 1.5px solid var(--app-accent, #7C6EF5); border-radius: 3px; background: var(--app-accent, #7C6EF5); color: var(--bg, #fff); font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 
 /* Strikethrough */
 .cm-strikethrough { text-decoration: line-through; opacity: 0.5; }
 
 /* Horizontal rule */
-.cm-hr { display: block; border: none; border-bottom: 1px solid var(--app-border, #333); color: transparent; margin: 8px 0; }
+.cm-hr { display: block; border: none; border-bottom: 1px solid var(--border-2, #272727); color: transparent; margin: 8px 0; }
 
 /* Blockquote */
 .cm-blockquote-mark { color: var(--app-accent, #7C6EF5); font-weight: 700; }
