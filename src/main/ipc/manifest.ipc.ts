@@ -8,6 +8,15 @@ import type { HaiManifest, Notebook, Tag, TrashEntry, NoteFrontmatter } from '..
 
 // ── Helpers ────────────────────────────────────────────────
 
+// Simple mutex to prevent concurrent manifest read-modify-write
+let manifestLock: Promise<void> = Promise.resolve()
+function withManifestLock<T>(fn: () => Promise<T>): Promise<T> {
+  const prev = manifestLock
+  let release: () => void
+  manifestLock = new Promise((r) => { release = r })
+  return prev.then(fn).finally(() => release!())
+}
+
 function getVaultPath(): string {
   const config = store.get('vaultConfig')
   if (!config) throw new Error('Vault não configurado')
@@ -41,8 +50,10 @@ async function loadManifest(vaultPath: string): Promise<HaiManifest> {
 }
 
 async function saveManifest(vaultPath: string, manifest: HaiManifest): Promise<void> {
-  const manifestPath = path.join(vaultPath, 'hai.json')
-  await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8')
+  return withManifestLock(async () => {
+    const manifestPath = path.join(vaultPath, 'hai.json')
+    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8')
+  })
 }
 
 async function updateNoteFrontmatter(filePath: string, updates: Partial<NoteFrontmatter>): Promise<void> {

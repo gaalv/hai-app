@@ -242,8 +242,12 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                 </p>
                 <button
                   className="px-3 py-1.5 rounded text-[11px] font-sans border-[0.5px] border-[var(--app-accent)] text-[var(--app-accent)] bg-[var(--app-accent-dim)] cursor-pointer hover:brightness-110 transition-all"
-                  onClick={() => {
-                    window.electronAPI.sync.push()
+                  onClick={async () => {
+                    try {
+                      await window.electronAPI.sync.push()
+                    } catch (err) {
+                      console.error('[settings] sync push failed:', err)
+                    }
                   }}
                 >
                   Sincronizar agora
