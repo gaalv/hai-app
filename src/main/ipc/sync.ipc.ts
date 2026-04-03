@@ -64,76 +64,84 @@ async function ensureGitRepo(vaultPath: string, repoUrl: string): Promise<void> 
 // ── Auto-sync timer ──────────────────────────────────────
 
 let autoSyncTimer: NodeJS.Timeout | null = null
+let pushInProgress = false
 
 async function handlePush(message?: string): Promise<PushResult> {
-  const vaultConfig = store.get('vaultConfig')
-  const syncConfig = store.get('syncConfig')
-  if (!vaultConfig || !syncConfig) {
-    console.warn('[sync:push] vault or sync not configured')
-    throw new Error('Vault ou sync não configurado')
+  if (pushInProgress) {
+    console.log('[sync:push] push already in progress, skipping')
+    return { filesCommitted: 0, commitHash: '', timestamp: new Date().toISOString() }
   }
+  pushInProgress = true
 
-  const token = await getAuthToken()
-  if (!token) {
-    console.warn('[sync:push] no auth token found')
-    throw new Error('Token não encontrado. Configure o sync.')
-  }
-
-  const statusMatrix = await git.statusMatrix({ fs: { promises: fs }, dir: vaultConfig.path })
-  const modified = statusMatrix.filter(([, head, workdir, stage]) => workdir !== head || stage !== head)
-
-  let commitSha = ''
-
-  if (modified.length > 0) {
-    console.log(`[sync:push] staging ${modified.length} files:`, modified.map(([f]) => f))
-
-    for (const [filepath, , workdir] of modified) {
-      if (workdir === 0) {
-        await git.remove({ fs: { promises: fs }, dir: vaultConfig.path, filepath })
-      } else {
-        await git.add({ fs: { promises: fs }, dir: vaultConfig.path, filepath })
-      }
+  try {
+    const vaultConfig = store.get('vaultConfig')
+    const syncConfig = store.get('syncConfig')
+    if (!vaultConfig || !syncConfig) {
+      console.warn('[sync:push] vault or sync not configured')
+      throw new Error('Vault ou sync não configurado')
     }
 
-    commitSha = await git.commit({
-      fs: { promises: fs },
+    const token = await getAuthToken()
+    if (!token) {
+      console.warn('[sync:push] no auth token found')
+      throw new Error('Token não encontrado. Configure o sync.')
+    }
+
+    const gitFs = { promises: fs }
+    const onAuth = getOnAuth(token)
+
+    const statusMatrix = await git.statusMatrix({ fs: gitFs, dir: vaultConfig.path })
+    const modified = statusMatrix.filter(([, head, workdir, stage]) => workdir !== head || stage !== head)
+
+    let commitSha = ''
+
+    if (modified.length > 0) {
+      console.log(`[sync:push] staging ${modified.length} files:`, modified.map(([f]) => f))
+
+      for (const [filepath, , workdir] of modified) {
+        if (workdir === 0) {
+          await git.remove({ fs: gitFs, dir: vaultConfig.path, filepath })
+        } else {
+          await git.add({ fs: gitFs, dir: vaultConfig.path, filepath })
+        }
+      }
+
+      commitSha = await git.commit({
+        fs: gitFs,
+        dir: vaultConfig.path,
+        message: message ?? `hai: sync ${new Date().toLocaleString('pt-BR')}`,
+        author: { name: 'Hai', email: 'hai@local' }
+      })
+      console.log(`[sync:push] committed ${commitSha}`)
+    } else {
+      console.log('[sync:push] no local changes, checking for unpushed commits...')
+    }
+
+    // Fetch first so tracking refs match the real remote state,
+    // then force-push. This prevents the "expected oid" mismatch.
+    try {
+      await git.fetch({ fs: gitFs, http, dir: vaultConfig.path, remote: 'origin', onAuth })
+    } catch {
+      // May fail on brand-new repos with no remote commits yet
+    }
+
+    await git.push({
+      fs: gitFs, http,
       dir: vaultConfig.path,
-      message: message ?? `hai: sync ${new Date().toLocaleString('pt-BR')}`,
-      author: { name: 'Hai', email: 'hai@local' }
+      remote: 'origin',
+      force: true,
+      onAuth
     })
-    console.log(`[sync:push] committed ${commitSha}`)
-  } else {
-    console.log('[sync:push] no local changes, checking for unpushed commits...')
+
+    console.log('[sync:push] pushed to origin')
+
+    const timestamp = new Date().toISOString()
+    store.set('syncConfig', { ...syncConfig, lastSync: timestamp } as never)
+
+    return { filesCommitted: modified.length, commitHash: commitSha, timestamp }
+  } finally {
+    pushInProgress = false
   }
-
-  // Push to remote — single-user app, local is source of truth
-  // Clear stale tracking ref so isomorphic-git doesn't send wrong expected oid
-  try {
-    await git.deleteRef({ fs: { promises: fs }, dir: vaultConfig.path, ref: 'refs/remotes/origin/main' })
-  } catch { /* ref may not exist */ }
-  try {
-    await git.deleteRef({ fs: { promises: fs }, dir: vaultConfig.path, ref: 'refs/remotes/origin/HEAD' })
-  } catch { /* ref may not exist */ }
-
-  await git.push({
-    fs: { promises: fs }, http,
-    dir: vaultConfig.path,
-    remote: 'origin',
-    force: true,
-    onAuth: getOnAuth(token)
-  })
-
-  // Fetch to restore correct tracking refs
-  try {
-    await git.fetch({ fs: { promises: fs }, http, dir: vaultConfig.path, remote: 'origin', onAuth: getOnAuth(token) })
-  } catch { /* non-critical */ }
-
-  console.log('[sync:push] pushed to origin')
-
-  const timestamp = new Date().toISOString()
-  store.set('syncConfig', { ...syncConfig, lastSync: timestamp } as never)
-
-  return { filesCommitted: modified.length, commitHash: commitSha, timestamp }
 }
 
 export function startAutoSync(intervalMinutes: number): void {
