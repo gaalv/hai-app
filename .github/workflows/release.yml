@@ -64,6 +64,10 @@ jobs:
         run: npm run build:mac
         env:
           HAI_GITHUB_CLIENT_ID: ${{ secrets.HAI_GITHUB_CLIENT_ID }}
+          # Prevents electron-builder from trying to publish on its own.
+          # The next step (softprops/action-gh-release) handles the release.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ELECTRON_BUILDER_PUBLISH: never
 
       # ── 6. Publish GitHub Release ─────────────────────────────────────────
       # electron-builder.config.ts sets `directories.output = "dist"`, so both
