@@ -9,6 +9,7 @@ import { ipcMain, shell, BrowserWindow } from 'electron'
 import store from '../store'
 import keytar from 'keytar'
 import type { GitHubProfile } from '../../renderer/src/types/auth'
+import { GITHUB_APP_CLIENT_ID } from '../config'
 
 const SERVICE = 'hai'
 const TOKEN_KEY = 'github-token'
@@ -72,9 +73,12 @@ export function registerAuthHandlers(): void {
 
   // Start device flow authentication
   ipcMain.handle('auth:device-flow-start', async () => {
+    // Priority: 1) build-time env var, 2) stored value (dev fallback)
     const clientId =
+      GITHUB_APP_CLIENT_ID ||
       (store.get('githubClientId') as string | undefined | null) ||
-      process.env.GITHUB_CLIENT_ID
+      ''
+
     if (!clientId) {
       return { error: 'client_id_not_configured' }
     }
@@ -123,9 +127,12 @@ export function registerAuthHandlers(): void {
   })
 
   // Poll for token after user authorizes
-  // NOTE: the renderer controls the timing — this handler just makes the request immediately
   ipcMain.handle('auth:device-flow-poll', async (_e, deviceCode: string) => {
-    const clientId = store.get('githubClientId') as string | undefined | null
+    const clientId =
+      GITHUB_APP_CLIENT_ID ||
+      (store.get('githubClientId') as string | undefined | null) ||
+      ''
+
     if (!clientId) {
       return { success: false, error: 'client_id_not_configured' }
     }

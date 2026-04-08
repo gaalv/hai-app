@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { GitHubProfile } from '../../types/auth'
 import { HaiIcon } from '../ui/HaiIcon'
 
-type Step = 'idle' | 'waiting_browser' | 'polling' | 'setup_client_id'
+type Step = 'idle' | 'waiting_browser' | 'polling'
 
 interface LoginScreenProps {
   onLogin: (profile: GitHubProfile) => void
@@ -12,7 +12,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
   const [step, setStep] = useState<Step>('idle')
   const [userCode, setUserCode] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [clientId, setClientId] = useState('')
 
   async function handleLogin(): Promise<void> {
     setError(null)
@@ -34,11 +33,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
       result = await window.electronAPI.auth.deviceFlowStart()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao conectar com o GitHub')
-      return
-    }
-
-    if ('error' in result && result.error === 'client_id_not_configured') {
-      setStep('setup_client_id')
       return
     }
 
@@ -83,14 +77,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
     }
   }
 
-  async function handleSaveClientId(): Promise<void> {
-    if (!clientId.trim()) return
-    await window.electronAPI.auth.setClientId(clientId.trim())
-    setStep('idle')
-    setError(null)
-    handleLogin()
-  }
-
   return (
     <div className="flex items-center justify-center min-h-screen bg-[var(--app-main)] relative overflow-hidden font-[var(--font-sans)] text-[13px] antialiased select-none titlebar-drag">
       {/* Radial gradient */}
@@ -119,39 +105,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
           <HaiIcon size={64} />
         </div>
 
-        {step === 'setup_client_id' ? (
-          <>
-            <div className="text-[18px] font-medium text-[var(--app-text-1)] tracking-[-0.5px] mb-[6px]">
-            </div>
-            <div className="text-[13px] text-[var(--app-text-2)] mb-5 leading-normal">
-              Para autenticar com GitHub, você precisa de um OAuth App com{' '}
-              <strong className="text-[var(--app-text-1)]">Device Flow</strong> habilitado.
-              Crie um em{' '}
-              <span className="text-[var(--app-accent)]">github.com/settings/developers</span>
-              , marque "Enable Device Flow" e cole o Client ID abaixo.
-            </div>
-            <div className="mb-4">
-              <div className="text-[11px] font-medium text-[var(--app-text-3)] tracking-[0.04em] uppercase mb-[6px]">
-                GitHub OAuth Client ID
-              </div>
-              <input
-                type="text"
-                placeholder="Ov23li..."
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveClientId() }}
-                className="w-full bg-white/[0.04] border-[0.5px] border-[var(--app-border-mid)] rounded-[var(--app-radius)] py-[10px] px-3 text-[13px] text-[var(--app-text-1)] font-[var(--font-sans)] outline-none focus:border-[rgba(192,80,16,0.5)] focus:shadow-[0_0_0_3px_rgba(192,80,16,0.1)]"
-              />
-            </div>
-            <Btn onClick={handleSaveClientId} disabled={!clientId.trim()}>Salvar e continuar</Btn>
-            <div
-              onClick={() => setStep('idle')}
-              className="mt-3 text-center text-[12px] text-[var(--app-text-3)] cursor-pointer"
-            >
-              Voltar
-            </div>
-          </>
-        ) : step === 'waiting_browser' || step === 'polling' ? (
+        {step === 'waiting_browser' || step === 'polling' ? (
           <>
             <div className="text-[18px] font-medium text-[var(--app-text-1)] tracking-[-0.5px] mb-[6px]">
               Autorize no GitHub

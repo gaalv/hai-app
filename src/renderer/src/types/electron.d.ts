@@ -101,6 +101,7 @@ export interface ElectronAPI {
     setMode: (mode: 'local' | 'sync') => Promise<void>
     getVersion: () => Promise<string>
     quit: () => Promise<void>
+    openExternal: (url: string) => Promise<void>
   }
   templates: {
     list: () => Promise<Array<{ name: string; content: string; isBuiltin: boolean }>>

@@ -96,7 +96,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getMode: () => ipcRenderer.invoke('app:get-mode'),
     setMode: (mode: 'local' | 'sync') => ipcRenderer.invoke('app:set-mode', mode),
     getVersion: () => ipcRenderer.invoke('app:get-version'),
-    quit: () => ipcRenderer.invoke('app:quit')
+    quit: () => ipcRenderer.invoke('app:quit'),
+    openExternal: (url: string) => ipcRenderer.invoke('app:open-external', url)
   },
 
   templates: {

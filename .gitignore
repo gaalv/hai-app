@@ -2,3 +2,6 @@ node_modules/
 out/
 dist/
 .DS_Store
+.env
+.env.*
+resources/icon_original_backup.png

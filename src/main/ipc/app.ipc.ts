@@ -1,4 +1,4 @@
-import { ipcMain, app } from 'electron'
+import { ipcMain, app, shell } from 'electron'
 import store from '../store'
 
 export function registerAppHandlers(): void {
@@ -16,5 +16,9 @@ export function registerAppHandlers(): void {
 
   ipcMain.handle('app:quit', () => {
     app.quit()
+  })
+
+  ipcMain.handle('app:open-external', (_e, url: string) => {
+    shell.openExternal(url)
   })
 }

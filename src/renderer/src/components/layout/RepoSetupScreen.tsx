@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { HaiIcon } from '../ui/HaiIcon'
 
-type Mode = 'choose' | 'connect' | 'create'
+type Mode = 'choose' | 'connect' | 'create' | 'done'
 
 interface RepoSetupScreenProps {
   onSetup: () => void
@@ -13,6 +13,7 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
   const [repoName, setRepoName] = useState('hai-notes')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [finalRepoName, setFinalRepoName] = useState('')
 
   async function handleConnect(): Promise<void> {
     if (!repoUrl.trim()) return
@@ -20,7 +21,9 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
     setError(null)
     try {
       await window.electronAPI.repo.connect(repoUrl.trim())
-      onSetup()
+      const name = repoUrl.trim().split('/').pop()?.replace(/\.git$/, '') ?? repoUrl
+      setFinalRepoName(name)
+      setMode('done')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao conectar repositório')
     } finally {
@@ -34,7 +37,8 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
     setError(null)
     try {
       await window.electronAPI.repo.create(repoName.trim())
-      onSetup()
+      setFinalRepoName(repoName.trim())
+      setMode('done')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar repositório')
     } finally {
@@ -57,6 +61,51 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
         <div className="flex flex-col items-center mb-7">
           <HaiIcon size={52} />
         </div>
+
+        {mode === 'done' && (
+          <>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded-full bg-[rgba(63,214,143,0.15)] flex items-center justify-center shrink-0">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M2.5 7l3 3 6-6" stroke="#3FD68F" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div>
+                <div className="text-[14px] font-medium text-[var(--app-text-1)]">Workspace configurado</div>
+                <div className="text-[12px] text-[var(--app-text-3)]">{finalRepoName}</div>
+              </div>
+            </div>
+
+            {/* Security notice */}
+            <div className="bg-[rgba(192,80,16,0.06)] border-[0.5px] border-[rgba(192,80,16,0.2)] rounded-[10px] p-4 mb-6">
+              <div className="flex items-start gap-2.5">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-[1px] text-[var(--app-accent)]">
+                  <path d="M7 1.5L12.5 12H1.5L7 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                  <line x1="7" y1="5.5" x2="7" y2="8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  <circle cx="7" cy="10" r="0.7" fill="currentColor"/>
+                </svg>
+                <div>
+                  <div className="text-[12px] font-medium text-[var(--app-text-1)] mb-1">Dica de segurança</div>
+                  <div className="text-[11.5px] text-[var(--app-text-2)] leading-relaxed">
+                    O Hai tem acesso a todos os seus repositórios. Para restringir o acesso apenas ao repositório{' '}
+                    <span className="font-mono text-[var(--app-accent)] text-[11px]">{finalRepoName}</span>
+                    , acesse as configurações do GitHub App e selecione somente esse repositório.
+                  </div>
+                  <button
+                    onClick={() => window.electronAPI.app?.openExternal?.('https://github.com/settings/installations')}
+                    className="mt-2 text-[11.5px] text-[var(--app-accent)] bg-transparent border-none cursor-pointer p-0 hover:underline"
+                  >
+                    Gerenciar acesso no GitHub →
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <ActionBtn onClick={onSetup}>
+              Abrir o Hai
+            </ActionBtn>
+          </>
+        )}
 
         {mode === 'choose' && (
           <>
