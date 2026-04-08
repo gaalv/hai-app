@@ -6,7 +6,7 @@ import type { SearchResult } from '../../types/electron'
 import type { Notebook } from '../../types/manifest'
 
 const NOTEBOOK_COLORS = [
-  '#7C6EF5', '#3FD68F', '#F5A623', '#F472B6',
+  '#C05010', '#3FD68F', '#F5A623', '#F472B6',
   '#60A5FA', '#34D399', '#FB923C',
 ]
 

@@ -1,6 +1,7 @@
 export interface SyncConfig {
   repoUrl: string
   configuredAt: string
+  lastSync?: string
 }
 
 export interface PushResult {

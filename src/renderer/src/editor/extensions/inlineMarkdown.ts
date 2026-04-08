@@ -3,10 +3,30 @@ import {
   ViewUpdate,
   DecorationSet,
   Decoration,
-  EditorView
+  EditorView,
+  WidgetType
 } from '@codemirror/view'
 import { RangeSetBuilder } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
+
+// ── Checkbox widget ───────────────────────────────────────
+
+class CheckboxWidget extends WidgetType {
+  constructor(private readonly checked: boolean) { super() }
+
+  eq(other: CheckboxWidget): boolean { return other.checked === this.checked }
+
+  toDOM(): HTMLElement {
+    const input = document.createElement('input')
+    input.type = 'checkbox'
+    input.checked = this.checked
+    input.className = 'cm-task-checkbox'
+    input.addEventListener('mousedown', (e) => e.preventDefault())
+    return input
+  }
+
+  ignoreEvent(): boolean { return false }
+}
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -17,7 +37,52 @@ function cursorOnLine(view: EditorView, from: number): boolean {
   )
 }
 
-// ── Decorations builder ────────────────────────────────
+// ── Line decoration builder (code fences, blockquotes) ────
+
+function buildLineDecorations(view: EditorView): DecorationSet {
+  const lineDecos: Array<{ pos: number; deco: Decoration }> = []
+
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(view.state).iterate({
+      from,
+      to,
+      enter(node) {
+        // ── Fenced code block lines ──────────────────────
+        if (node.name === 'FencedCode') {
+          const startLine = view.state.doc.lineAt(node.from)
+          const endLine = view.state.doc.lineAt(node.to)
+          for (let ln = startLine.number; ln <= endLine.number; ln++) {
+            const line = view.state.doc.line(ln)
+            lineDecos.push({ pos: line.from, deco: Decoration.line({ class: 'cm-code-fence-line' }) })
+          }
+        }
+        // ── Blockquote lines ─────────────────────────────
+        if (node.name === 'Blockquote') {
+          const startLine = view.state.doc.lineAt(node.from)
+          const endLine = view.state.doc.lineAt(node.to)
+          for (let ln = startLine.number; ln <= endLine.number; ln++) {
+            const line = view.state.doc.line(ln)
+            lineDecos.push({ pos: line.from, deco: Decoration.line({ class: 'cm-blockquote-line' }) })
+          }
+        }
+      }
+    })
+  }
+
+  // Line decorations must be sorted and unique per position
+  lineDecos.sort((a, b) => a.pos - b.pos)
+  const builder = new RangeSetBuilder<Decoration>()
+  let lastPos = -1
+  for (const { pos, deco } of lineDecos) {
+    if (pos !== lastPos) {
+      builder.add(pos, pos, deco)
+      lastPos = pos
+    }
+  }
+  return builder.finish()
+}
+
+// ── Mark decorations builder ───────────────────────────
 
 function buildDecorations(view: EditorView): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>()
@@ -169,7 +234,28 @@ function buildDecorations(view: EditorView): DecorationSet {
         if (node.name === 'TaskMarker') {
           const text = view.state.doc.sliceString(nFrom, nTo)
           const checked = text.includes('x') || text.includes('X')
-          mark(nFrom, nTo, checked ? 'cm-task-checked' : 'cm-task-unchecked')
+          decorations.push({
+            from: nFrom,
+            to: nTo,
+            deco: Decoration.replace({ widget: new CheckboxWidget(checked) })
+          })
+        }
+
+        // ── Fenced code block — hide markers ────────────
+        if (node.name === 'FencedCode') {
+          node.node.cursor().iterate((child) => {
+            if (child.name === 'CodeMark') {
+              const onLine = cursorOnLine(view, child.from)
+              if (!onLine) {
+                hide(child.from, child.to)
+              } else {
+                mark(child.from, child.to, 'cm-code-fence-mark')
+              }
+            }
+            if (child.name === 'CodeInfo') {
+              mark(child.from, child.to, 'cm-code-fence-lang')
+            }
+          })
         }
 
         // ── Strikethrough ~~text~~ ───────────────────────
@@ -221,19 +307,25 @@ function buildDecorations(view: EditorView): DecorationSet {
 
 const clickHandler = EditorView.domEventHandlers({
   click(event, view) {
+    // Toggle checkbox widget clicks
+    const target = event.target as HTMLElement
+    if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+      if (pos == null) return false
+      const node = syntaxTree(view.state).resolve(pos, 1)
+      if (node.name === 'TaskMarker') {
+        const text = view.state.doc.sliceString(node.from, node.to)
+        const replacement = text.includes('x') || text.includes('X') ? '[ ]' : '[x]'
+        view.dispatch({ changes: { from: node.from, to: node.to, insert: replacement } })
+        return true
+      }
+    }
+
     const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
     if (pos == null) return false
 
     const tree = syntaxTree(view.state)
     const node = tree.resolve(pos, 1)
-
-    // Toggle task list checkboxes on click
-    if (node.name === 'TaskMarker') {
-      const text = view.state.doc.sliceString(node.from, node.to)
-      const replacement = text.includes('x') || text.includes('X') ? '[ ]' : '[x]'
-      view.dispatch({ changes: { from: node.from, to: node.to, insert: replacement } })
-      return true
-    }
 
     // Links: Cmd/Ctrl+Click to open
     if (!event.metaKey && !event.ctrlKey) return false
@@ -266,24 +358,56 @@ const clickHandler = EditorView.domEventHandlers({
   }
 })
 
+// ── Force decoration re-render on cursor move via click ────────────────────
+
+const clickRerender = EditorView.domEventHandlers({
+  click(_event, view) {
+    // Dispatch an empty transaction so selectionSet fires and decorations
+    // (show/hide markers) update immediately when the user clicks to a new line.
+    view.dispatch({})
+    return false
+  }
+})
+
 // ── View Plugin ────────────────────────────────────────
 
+const markPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+
+    constructor(view: EditorView) {
+      this.decorations = buildDecorations(view)
+    }
+
+    update(update: ViewUpdate): void {
+      if (update.docChanged || update.selectionSet || update.viewportChanged) {
+        this.decorations = buildDecorations(update.view)
+      }
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
+
+const linePlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+
+    constructor(view: EditorView) {
+      this.decorations = buildLineDecorations(view)
+    }
+
+    update(update: ViewUpdate): void {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = buildLineDecorations(update.view)
+      }
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
+
 export const inlineMarkdownExtension = [
-  ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet
-
-      constructor(view: EditorView) {
-        this.decorations = buildDecorations(view)
-      }
-
-      update(update: ViewUpdate): void {
-        if (update.docChanged || update.selectionSet || update.viewportChanged) {
-          this.decorations = buildDecorations(update.view)
-        }
-      }
-    },
-    { decorations: (v) => v.decorations }
-  ),
-  clickHandler
+  linePlugin,
+  markPlugin,
+  clickHandler,
+  clickRerender
 ]

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useSyncMode } from '../../hooks/useSyncMode'
 import { appService } from '../../services/app'
-import { syncService } from '../../services/sync'
 import { useAuthStore } from '../../stores/auth.store'
 
 interface Props {
@@ -17,7 +16,6 @@ export function ModeSettingsSection({ onRequestLogin }: Props): JSX.Element {
   async function handleSwitchToLocal(): Promise<void> {
     setSwitching(true)
     try {
-      await syncService.stopAutoSync()
       await appService.setMode('local')
     } finally {
       setSwitching(false)

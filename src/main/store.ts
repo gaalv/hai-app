@@ -10,6 +10,9 @@ interface StoreSchema {
   githubClientId: string | null
   cachedProfile: GitHubProfile | null
   profileCachedAt: number | null
+  // GitHub Contents API sync state
+  fileShas: Record<string, string>  // relativePath → githubSha
+  lastSyncAt: string | null         // ISO timestamp do último sync bem-sucedido
 }
 
 const store = new Store<StoreSchema>({
@@ -20,7 +23,9 @@ const store = new Store<StoreSchema>({
     mode: null,
     githubClientId: null,
     cachedProfile: null,
-    profileCachedAt: null
+    profileCachedAt: null,
+    fileShas: {},
+    lastSyncAt: null
   }
 })
 

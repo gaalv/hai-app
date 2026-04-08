@@ -97,7 +97,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse 60% 50% at 50% 30%, rgba(124,110,245,0.14) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse 60% 50% at 50% 30%, rgba(192,80,16,0.12) 0%, transparent 70%)',
         }}
       />
       {/* Grid pattern */}
@@ -113,13 +113,10 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
       />
 
       {/* Card */}
-      <div className="relative z-[2] w-[360px] bg-[rgba(15,15,20,0.95)] border-[0.5px] border-[var(--app-border-mid)] rounded-2xl px-8 pt-9 pb-8 backdrop-blur-[20px] titlebar-no-drag">
-        {/* Logo — centered */}
+      <div className="relative z-[2] w-[360px] bg-[rgba(19,9,0,0.96)] border-[0.5px] border-[var(--app-border-mid)] rounded-2xl px-8 pt-9 pb-8 backdrop-blur-[20px] titlebar-no-drag">
+        {/* Logo — apenas ícone, sem texto */}
         <div className="flex flex-col items-center mb-7">
-          <HaiIcon size={48} className="mb-3" />
-          <div className="text-[17px] font-medium text-[var(--app-text-1)] tracking-[-0.3px]">
-            Hai
-          </div>
+          <HaiIcon size={64} />
         </div>
 
         {step === 'setup_client_id' ? (
@@ -143,7 +140,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSaveClientId() }}
-                className="w-full bg-white/[0.04] border-[0.5px] border-[var(--app-border-mid)] rounded-[var(--app-radius)] py-[10px] px-3 text-[13px] text-[var(--app-text-1)] font-[var(--font-sans)] outline-none focus:border-[rgba(124,110,245,0.5)] focus:shadow-[0_0_0_3px_rgba(124,110,245,0.1)]"
+                className="w-full bg-white/[0.04] border-[0.5px] border-[var(--app-border-mid)] rounded-[var(--app-radius)] py-[10px] px-3 text-[13px] text-[var(--app-text-1)] font-[var(--font-sans)] outline-none focus:border-[rgba(192,80,16,0.5)] focus:shadow-[0_0_0_3px_rgba(192,80,16,0.1)]"
               />
             </div>
             <Btn onClick={handleSaveClientId} disabled={!clientId.trim()}>Salvar e continuar</Btn>
@@ -164,7 +161,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps): JSX.Element {
             </div>
 
             {/* User code display */}
-            <div className="bg-[rgba(124,110,245,0.08)] border-[0.5px] border-[rgba(124,110,245,0.3)] rounded-[10px] p-4 text-center mb-5">
+            <div className="bg-[rgba(192,80,16,0.08)] border-[0.5px] border-[rgba(192,80,16,0.3)] rounded-[10px] p-4 text-center mb-5">
               <div className="text-[11px] text-[var(--app-text-3)] mb-2 tracking-[0.05em] uppercase">
                 Código de verificação
               </div>
@@ -230,7 +227,7 @@ function Btn({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full flex items-center justify-center gap-2 p-[11px] border-none rounded-[var(--app-radius)] text-[13px] font-medium text-white font-[var(--font-sans)] tracking-[-0.2px] transition-[opacity,transform] duration-150 hover:opacity-[0.88] active:scale-[0.99] ${disabled ? 'bg-[rgba(124,110,245,0.4)] cursor-not-allowed' : 'bg-[var(--app-accent)] cursor-pointer'}`}
+      className={`w-full flex items-center justify-center gap-2 p-[11px] border-none rounded-[var(--app-radius)] text-[13px] font-medium text-[#F0DEC8] font-[var(--font-sans)] tracking-[-0.2px] transition-[opacity,transform] duration-150 hover:opacity-[0.88] active:scale-[0.99] ${disabled ? 'bg-[rgba(192,80,16,0.4)] cursor-not-allowed' : 'bg-[var(--app-accent)] cursor-pointer'}`}
     >
       {children}
     </button>

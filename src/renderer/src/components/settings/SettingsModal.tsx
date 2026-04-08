@@ -213,29 +213,6 @@ export function SettingsModal({ onClose }: Props): JSX.Element {
                 Sincronização
               </p>
               <div>
-                <p className="text-[12px] font-sans text-[var(--app-text-1)] mb-1">Intervalo de auto-sync</p>
-                <p className="text-[11px] font-sans text-[var(--app-text-3)] mb-3">
-                  Com que frequência suas notas são sincronizadas com o GitHub.
-                </p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {[0, 5, 15, 30].map((min) => (
-                    <button
-                      key={min}
-                      className="px-3 py-1.5 rounded text-[11px] font-sans border-[0.5px] border-[var(--app-border)] text-[var(--app-text-2)] hover:border-[var(--app-accent)] hover:text-[var(--app-text-1)] cursor-pointer transition-colors bg-white/[0.04]"
-                      onClick={() => {
-                        if (min === 0) {
-                          window.electronAPI.sync.stopAutoSync()
-                        } else {
-                          window.electronAPI.sync.setAutoSync(min)
-                        }
-                      }}
-                    >
-                      {min === 0 ? 'Manual' : `${min} min`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
                 <p className="text-[12px] font-sans text-[var(--app-text-1)] mb-1">Sync manual</p>
                 <p className="text-[11px] font-sans text-[var(--app-text-3)] mb-3">
                   Forçar sincronização agora.

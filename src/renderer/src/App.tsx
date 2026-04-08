@@ -7,7 +7,6 @@ import { useAuthStore } from './stores/auth.store'
 import type { GitHubProfile } from './types/auth'
 
 type Screen = 'checking' | 'login' | 'repo-setup' | 'app'
-type Tab = 'notes' | 'notebooks' | 'search' | 'tags'
 
 function App(): JSX.Element {
   if (window.location.hash === '#quick-capture') {
@@ -15,7 +14,6 @@ function App(): JSX.Element {
   }
 
   const [screen, setScreen] = useState<Screen>('checking')
-  const [tab, setTab] = useState<Tab>('notes')
   const { setProfile, logout } = useAuthStore()
 
   useEffect(() => {
@@ -91,12 +89,7 @@ function App(): JSX.Element {
     return <RepoSetupScreen onSetup={() => setScreen('app')} />
   }
 
-  return (
-    <AppLayout
-      tab={tab}
-      setTab={setTab}
-    />
-  )
+  return <AppLayout />
 }
 
 export default App

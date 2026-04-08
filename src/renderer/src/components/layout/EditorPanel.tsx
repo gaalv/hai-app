@@ -2,7 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useEditorStore } from '../../stores/editor.store'
 import { useNotesStore } from '../../stores/notes.store'
 import { useManifestStore } from '../../stores/manifest.store'
+import { useVaultStore } from '../../stores/vault.store'
+import { useUIStore } from '../../stores/ui.store'
 import { CodeMirrorEditor } from '../editor/CodeMirrorEditor'
+import { MarkdownPreview } from '../editor/MarkdownPreview'
+import { BacklinksPanel } from '../editor/BacklinksPanel'
 
 // Simple frontmatter parser (no Node.js dependency needed)
 function splitFrontmatter(raw: string): { frontmatter: string; body: string } {
@@ -81,9 +85,25 @@ function estimateReadTime(text: string): number {
 }
 
 export function EditorPanel(): JSX.Element {
-  const { activeNote, isDirty, setContent, save } = useEditorStore()
-  const { updateNoteTitle } = useNotesStore()
-  const { tags: manifestTags } = useManifestStore()
+  const { activeNote, isDirty, isPreviewOnly, togglePreviewOnly, setContent, save, openNote } = useEditorStore()
+  const { updateNoteTitle, selectNote } = useNotesStore()
+  const { tags: manifestTags, notebooks } = useManifestStore()
+  const vaultPath = useVaultStore((s) => s.config?.path)
+  const themeMode = useUIStore((s) => s.resolvedTheme)
+  const [showBacklinks, setShowBacklinks] = useState(false)
+
+  useEffect(() => {
+    async function handleOpenNote(e: Event): Promise<void> {
+      const { title } = (e as CustomEvent<{ title: string }>).detail
+      const result = await window.electronAPI.notes.findByTitle(title)
+      if (result) {
+        await openNote(result.path)
+        selectNote(result.path)
+      }
+    }
+    document.addEventListener('hai:open-note', handleOpenNote)
+    return () => document.removeEventListener('hai:open-note', handleOpenNote)
+  }, [openNote, selectNote])
   const saveTimer = useRef<NodeJS.Timeout | null>(null)
   const titleRef = useRef<HTMLDivElement>(null)
   const activeNoteRef = useRef(activeNote)
@@ -175,31 +195,101 @@ export function EditorPanel(): JSX.Element {
   const createdDate = extractDate(frontmatter)
   const readTime = estimateReadTime(body)
 
+  // Derive notebook name from note path
+  const notebookName = (() => {
+    if (!vaultPath || !notebooks.length) return null
+    const rel = activeNote.path.startsWith(vaultPath)
+      ? activeNote.path.slice(vaultPath.length + 1)
+      : activeNote.path
+    const segment = rel.split('/')[0]
+    return notebooks.find((n) => n.path === segment)?.name ?? null
+  })()
+
   return (
     <div
       className="flex flex-col overflow-hidden flex-1 bg-[var(--app-main)]"
     >
       {/* Content area */}
-      <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex-1 overflow-hidden flex flex-col relative">
+        {/* Floating edit/preview toggle */}
+        <div className="absolute top-3 right-4 z-20 flex items-center gap-1.5">
+          {/* Backlinks toggle */}
+          <button
+            onClick={() => setShowBacklinks((v) => !v)}
+            title="Backlinks"
+            className={`flex items-center justify-center w-6 h-6 rounded cursor-pointer transition-colors border border-transparent ${
+              showBacklinks
+                ? 'bg-[var(--app-accent-dim)] text-[var(--app-accent)] border-[var(--app-accent-dim)]'
+                : 'text-[var(--app-text-3)] hover:text-[var(--app-text-2)] bg-[var(--app-surface)] border-[var(--app-border-mid)]'
+            }`}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M5 9.5H3a2.5 2.5 0 0 1 0-5h2M8 3.5h2a2.5 2.5 0 0 1 0 5H8M4.5 6.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+          </button>
+        <div className="flex items-center gap-0.5 bg-[var(--app-surface)] border border-[var(--app-border-mid)] rounded-md p-0.5">
+          <button
+            onClick={() => isPreviewOnly && togglePreviewOnly()}
+            title="Editar (⌘⇧P)"
+            className={`flex items-center justify-center w-6 h-6 rounded cursor-pointer transition-colors ${
+              !isPreviewOnly
+                ? 'bg-[var(--app-accent-dim)] text-[var(--app-accent)]'
+                : 'text-[var(--app-text-3)] hover:text-[var(--app-text-2)] bg-transparent'
+            }`}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <path d="M2 10.5l1.5-1.5 6-6 1.5 1.5-6 6L2 10.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+              <path d="M8.5 3l1.5 1.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => !isPreviewOnly && togglePreviewOnly()}
+            title="Preview (⌘⇧P)"
+            className={`flex items-center justify-center w-6 h-6 rounded cursor-pointer transition-colors ${
+              isPreviewOnly
+                ? 'bg-[var(--app-accent-dim)] text-[var(--app-accent)]'
+                : 'text-[var(--app-text-3)] hover:text-[var(--app-text-2)] bg-transparent'
+            }`}
+          >
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+              <ellipse cx="6.5" cy="6.5" rx="5" ry="3.5" stroke="currentColor" strokeWidth="1.2"/>
+              <circle cx="6.5" cy="6.5" r="1.8" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+        </div>
         {/* Metadata header */}
         <div className="shrink-0 pt-8 px-6 max-w-[720px] w-full mx-auto overflow-visible relative z-10">
-          {/* Tags — interactive */}
-          <TagBar tags={tags} availableTags={manifestTags} onAdd={handleAddTag} onRemove={handleRemoveTag} />
-
           {/* Title — uncontrolled contentEditable, set via ref */}
           <div
             ref={titleRef}
-            contentEditable
+            contentEditable={!isPreviewOnly}
             suppressContentEditableWarning
             onInput={handleTitleInput}
             data-placeholder="Sem título"
-            className="text-[26px] font-medium text-[var(--app-text-1)] leading-[1.25] mb-[6px] tracking-[-0.6px] outline-none cursor-text min-h-8 empty:before:content-[attr(data-placeholder)] empty:before:text-[var(--app-text-3)]"
+            className="text-[26px] font-medium text-[var(--app-text-1)] leading-[1.25] tracking-[-0.6px] outline-none cursor-text min-h-8 empty:before:content-[attr(data-placeholder)] empty:before:text-[var(--app-text-3)]"
           />
 
-          {/* Date row */}
-          <div
-            className="flex items-center text-[11.5px] text-[var(--app-text-3)] mb-6 gap-3"
-          >
+          {/* Notebook name */}
+          {notebookName && (
+            <div className="flex items-center gap-[5px] mt-[6px] mb-[10px] text-[11.5px] text-[var(--app-text-3)]">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                <rect x="1" y="1.5" width="9" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.1"/>
+                <line x1="3" y1="4" x2="8" y2="4" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                <line x1="3" y1="6" x2="8" y2="6" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+                <line x1="3" y1="8" x2="5.5" y2="8" stroke="currentColor" strokeWidth="1" strokeLinecap="round"/>
+              </svg>
+              {notebookName}
+            </div>
+          )}
+
+          {/* Tags — interactive */}
+          <div className={notebookName ? '' : 'mt-[10px]'}>
+            <TagBar tags={tags} availableTags={manifestTags} onAdd={handleAddTag} onRemove={handleRemoveTag} />
+          </div>
+
+          {/* Date / read time row */}
+          <div className="flex items-center text-[11.5px] text-[var(--app-text-3)] mb-6 gap-3">
             {createdDate && (
               <span className="flex items-center gap-[5px]">
                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
@@ -223,14 +313,28 @@ export function EditorPanel(): JSX.Element {
           <div className="h-[0.5px] bg-[var(--app-border)] mb-0" />
         </div>
 
-        {/* CodeMirror editor */}
-        <div className="flex-1 overflow-hidden max-w-[720px] w-full mx-auto">
-          <CodeMirrorEditor
-            key={activeNote.path}
-            initialContent={body}
-            onChange={handleBodyChange}
-          />
-        </div>
+        {/* Editor / Preview */}
+        {isPreviewOnly ? (
+          <div className="flex-1 overflow-auto max-w-[720px] w-full mx-auto">
+            <MarkdownPreview content={body} vaultPath={vaultPath} />
+          </div>
+        ) : (
+          <div className="flex-1 overflow-hidden max-w-[720px] w-full mx-auto">
+            <CodeMirrorEditor
+              key={activeNote.path}
+              initialContent={body}
+              onChange={handleBodyChange}
+              themeMode={themeMode}
+            />
+          </div>
+        )}
+
+        {/* Backlinks panel */}
+        {showBacklinks && (
+          <div className="shrink-0 border-t-[0.5px] border-t-[var(--app-border)] h-[220px]">
+            <BacklinksPanel onClose={() => setShowBacklinks(false)} />
+          </div>
+        )}
       </div>
     </div>
   )

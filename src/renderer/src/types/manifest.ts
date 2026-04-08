@@ -5,6 +5,7 @@ export interface HaiManifest {
   pinned: string[]        // relative paths
   inbox: string           // default: 'inbox'
   trash?: TrashEntry[]
+  calendarLinks?: Record<string, string[]>  // YYYY-MM-DD → relative paths[]
   syncConfig?: { repoUrl: string; autoSyncMinutes: number }
 }
 
@@ -28,6 +29,7 @@ export interface TrashEntry {
   originalPath: string    // relative to vault
   trashedAt: string
   trashPath: string       // relative to vault/.trash/
+  title?: string
 }
 
 export interface NoteFrontmatter {

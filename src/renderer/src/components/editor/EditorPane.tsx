@@ -7,6 +7,7 @@ import { useDebounce } from '../../hooks/useDebounce'
 import { CodeMirrorEditor, CodeMirrorEditorHandle } from './CodeMirrorEditor'
 import { MarkdownPreview } from './MarkdownPreview'
 import { VersionHistory } from './VersionHistory'
+import { BacklinksPanel } from './BacklinksPanel'
 import { VimStatusBar } from './VimStatusBar'
 
 interface Props {
@@ -14,10 +15,11 @@ interface Props {
 }
 
 export function EditorPane({ focusMode }: Props): JSX.Element {
-  const { activeNote, isDirty, isSaving, saveError, previewMode, setContent, save, setPreviewMode } = useEditorStore()
+  const { activeNote, isDirty, isSaving, saveError, previewMode, setContent, save, setPreviewMode, openNote } = useEditorStore()
   const vimMode = useUIStore((s) => s.vimMode)
-  const vaultPath = useVaultStore((s) => s.config?.path ?? '')
+  const vaultPath = useVaultStore((s) => s.config?.path)
   const [showHistory, setShowHistory] = useState(false)
+  const [showBacklinks, setShowBacklinks] = useState(false)
 
   // Ref to the underlying EditorView for VimStatusBar and other effects
   const editorRef = useRef<CodeMirrorEditorHandle>(null)
@@ -29,6 +31,17 @@ export function EditorPane({ focusMode }: Props): JSX.Element {
   })
 
   useDebounce(save, 500, [activeNote?.content])
+
+  useEffect(() => {
+    async function handleOpenNote(e: Event): Promise<void> {
+      const { title } = (e as CustomEvent<{ title: string }>).detail
+      const result = await window.electronAPI.notes.findByTitle(title)
+      if (result) openNote(result.path)
+    }
+
+    document.addEventListener('hai:open-note', handleOpenNote)
+    return () => document.removeEventListener('hai:open-note', handleOpenNote)
+  }, [openNote])
 
   async function handleExport(format: 'pdf' | 'html' | 'md'): Promise<void> {
     if (!activeNote) return
@@ -111,6 +124,13 @@ export function EditorPane({ focusMode }: Props): JSX.Element {
             title="Histórico de versões (⌘H)"
           >⏱</button>
 
+          {/* Backlinks */}
+          <button
+            className={`${toolBtnBase} ml-1 ${showBacklinks ? toolBtnActive : ''}`}
+            onClick={() => setShowBacklinks(!showBacklinks)}
+            title="Backlinks"
+          >⟵</button>
+
           {/* Export dropdown */}
           <div className="relative group ml-1">
             <button className={toolBtnBase} title="Exportar">↑</button>
@@ -139,19 +159,19 @@ export function EditorPane({ focusMode }: Props): JSX.Element {
         )}
         {showPreview && (
           <div className="flex-1 overflow-hidden">
-            <MarkdownPreview content={activeNote.content} />
+            <MarkdownPreview content={activeNote.content} vaultPath={vaultPath} />
           </div>
         )}
         {showHistory && (
           <div className="w-72 border-l border-[var(--border)] overflow-hidden shrink-0">
             <VersionHistory
-              relativePath={activeNote.path.replace(vaultPath + '/', '')}
-              onRestore={(content) => {
-                setContent(content)
-                setShowHistory(false)
-              }}
               onClose={() => setShowHistory(false)}
             />
+          </div>
+        )}
+        {showBacklinks && (
+          <div className="w-72 border-l border-[var(--border)] overflow-hidden shrink-0">
+            <BacklinksPanel onClose={() => setShowBacklinks(false)} />
           </div>
         )}
       </div>

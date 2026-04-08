@@ -6,7 +6,7 @@ import type { SearchResult } from '../../types/electron'
 import type { Tag } from '../../types/manifest'
 
 const TAG_COLORS = [
-  '#7C6EF5', '#3FD68F', '#F5A623', '#C084FC',
+  '#C05010', '#3FD68F', '#F5A623', '#C084FC',
   '#F472B6', '#60A5FA', '#F87171', '#34D399',
 ]
 

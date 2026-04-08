@@ -264,6 +264,14 @@ export function registerManifestHandlers(): void {
     const trashDir = path.join(vaultPath, '.trash')
     await fs.mkdir(trashDir, { recursive: true })
 
+    // Extract title from frontmatter before moving
+    let noteTitle: string | undefined
+    try {
+      const raw = await fs.readFile(absolutePath, 'utf-8')
+      const parsed = matter(raw)
+      noteTitle = (parsed.data as NoteFrontmatter).title || undefined
+    } catch { /* ignore */ }
+
     const trashName = `${Date.now()}_${path.basename(absolutePath)}`
     const trashAbsPath = path.join(trashDir, trashName)
     await fs.rename(absolutePath, trashAbsPath)
@@ -271,7 +279,8 @@ export function registerManifestHandlers(): void {
     const entry: TrashEntry = {
       originalPath: relative,
       trashedAt: new Date().toISOString(),
-      trashPath: path.relative(vaultPath, trashAbsPath)
+      trashPath: path.relative(vaultPath, trashAbsPath),
+      title: noteTitle
     }
     if (!manifest.trash) manifest.trash = []
     manifest.trash.push(entry)
@@ -318,6 +327,29 @@ export function registerManifestHandlers(): void {
       manifest.trash = []
     }
 
+    await saveManifest(vaultPath, manifest)
+  })
+
+  // ── Calendar links ────────────────────────────────────────
+  ipcMain.handle('manifest:calendar-link', async (_e, dateKey: string, relativePath: string) => {
+    const vaultPath = getVaultPath()
+    const manifest = await loadManifest(vaultPath)
+    if (!manifest.calendarLinks) manifest.calendarLinks = {}
+    const existing = manifest.calendarLinks[dateKey] ?? []
+    if (!existing.includes(relativePath)) {
+      manifest.calendarLinks[dateKey] = [...existing, relativePath]
+      await saveManifest(vaultPath, manifest)
+    }
+  })
+
+  ipcMain.handle('manifest:calendar-unlink', async (_e, dateKey: string, relativePath: string) => {
+    const vaultPath = getVaultPath()
+    const manifest = await loadManifest(vaultPath)
+    if (!manifest.calendarLinks?.[dateKey]) return
+    manifest.calendarLinks[dateKey] = manifest.calendarLinks[dateKey].filter((p) => p !== relativePath)
+    if (manifest.calendarLinks[dateKey].length === 0) {
+      delete manifest.calendarLinks[dateKey]
+    }
     await saveManifest(vaultPath, manifest)
   })
 

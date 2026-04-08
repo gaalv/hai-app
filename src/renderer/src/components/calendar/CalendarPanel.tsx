@@ -1,11 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback } from 'react'
+import { useManifestStore } from '../../stores/manifest.store'
 import { useEditorStore } from '../../stores/editor.store'
-
-interface NoteWithDate {
-  path: string
-  title: string
-  dueDate: string
-}
+import { useVaultStore } from '../../stores/vault.store'
+import { useNotesStore } from '../../stores/notes.store'
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const MONTHS = [
@@ -13,72 +10,63 @@ const MONTHS = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ]
 
-function parseFrontmatter(content: string): { title: string; dueDate?: string } {
-  const match = content.match(/^---\n([\s\S]*?)\n---/)
-  if (!match) return { title: 'Sem título' }
-  const fm = match[1]
-  const title = fm.match(/^title:\s*(.+)$/m)?.[1]?.trim() ?? 'Sem título'
-  const dueDate = fm.match(/^dueDate:\s*(.+)$/m)?.[1]?.trim()
-  return { title, dueDate }
-}
-
 function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function formatDisplayDate(dateKey: string): string {
+  const [, m, d] = dateKey.split('-').map(Number)
+  return `${d} de ${MONTHS[m - 1]}`
 }
 
 export function CalendarPanel(): JSX.Element {
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [selectedDay, setSelectedDay] = useState<string | null>(toDateKey(new Date()))
-  const [notes, setNotes] = useState<NoteWithDate[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+
+  const { calendarLinks, calendarLink, calendarUnlink } = useManifestStore()
+  const activeNote = useEditorStore((s) => s.activeNote)
+  const openNote = useEditorStore((s) => s.openNote)
+  const vaultPath = useVaultStore((s) => s.config?.path)
+  const notes = useNotesStore((s) => s.notes)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
 
-  // Load notes with dueDate
-  useEffect(() => {
-    let cancelled = false
-    setIsLoading(true)
+  // relative path of the active note
+  const activeRelPath = useMemo(() => {
+    if (!activeNote || !vaultPath) return null
+    const p = activeNote.path
+    return p.startsWith(vaultPath + '/') ? p.slice(vaultPath.length + 1) : p
+  }, [activeNote?.path, vaultPath])
 
-    async function loadNotes(): Promise<void> {
-      try {
-        const vault = await window.electronAPI.vault.load()
-        if (!vault || cancelled) return
-        const allFiles = await window.electronAPI.notes.listAll(vault.path)
-        const notesWithDates: NoteWithDate[] = []
-
-        const flatFiles = flattenFiles(allFiles)
-        for (const filePath of flatFiles) {
-          try {
-            const content = await window.electronAPI.notes.read(filePath)
-            const fm = parseFrontmatter(content)
-            if (fm.dueDate) {
-              notesWithDates.push({ path: filePath, title: fm.title, dueDate: fm.dueDate })
-            }
-          } catch { /* skip unreadable */ }
-        }
-
-        if (!cancelled) setNotes(notesWithDates)
-      } catch { /* ignore */ }
-      if (!cancelled) setIsLoading(false)
-    }
-
-    loadNotes()
-    return () => { cancelled = true }
-  }, [])
-
-  // Map dueDate → notes for quick lookup
-  const notesByDate = useMemo(() => {
-    const map: Record<string, NoteWithDate[]> = {}
-    for (const n of notes) {
-      const key = n.dueDate.slice(0, 10)
-      if (!map[key]) map[key] = []
-      map[key].push(n)
-    }
-    return map
+  // Lookup note title by relative path (from notes list or by parsing path)
+  const getTitleForPath = useCallback((relPath: string): string => {
+    const found = notes.find((n) => n.relativePath === relPath)
+    if (found) return found.title
+    return relPath.split('/').pop()?.replace(/\.md$/, '') ?? relPath
   }, [notes])
 
-  const selectedNotes = selectedDay ? (notesByDate[selectedDay] ?? []) : []
+  const handlePrevMonth = useCallback(() => {
+    setCurrentDate(new Date(year, month - 1, 1))
+  }, [year, month])
+
+  const handleNextMonth = useCallback(() => {
+    setCurrentDate(new Date(year, month + 1, 1))
+  }, [year, month])
+
+  const handleDayClick = useCallback((dateKey: string) => {
+    setSelectedDay((prev) => prev === dateKey ? null : dateKey)
+  }, [])
+
+  async function handleLink(): Promise<void> {
+    if (!selectedDay || !activeRelPath) return
+    await calendarLink(selectedDay, activeRelPath)
+  }
+
+  async function handleUnlink(relPath: string): Promise<void> {
+    if (!selectedDay) return
+    await calendarUnlink(selectedDay, relPath)
+  }
 
   // Calendar grid
   const firstDay = new Date(year, month, 1).getDay()
@@ -89,17 +77,8 @@ export function CalendarPanel(): JSX.Element {
   for (let i = 0; i < firstDay; i++) calendarDays.push(null)
   for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d)
 
-  const handlePrevMonth = useCallback(() => {
-    setCurrentDate(new Date(year, month - 1, 1))
-  }, [year, month])
-
-  const handleNextMonth = useCallback(() => {
-    setCurrentDate(new Date(year, month + 1, 1))
-  }, [year, month])
-
-  const handleOpenNote = useCallback((path: string) => {
-    useEditorStore.getState().openNote(path)
-  }, [])
+  const selectedLinks = selectedDay ? (calendarLinks[selectedDay] ?? []) : []
+  const activeAlreadyLinked = !!(selectedDay && activeRelPath && selectedLinks.includes(activeRelPath))
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -144,12 +123,12 @@ export function CalendarPanel(): JSX.Element {
             const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
             const isToday = dateKey === todayKey
             const isSelected = dateKey === selectedDay
-            const hasNotes = !!notesByDate[dateKey]
+            const hasLinks = !!(calendarLinks[dateKey]?.length)
 
             return (
               <button
                 key={dateKey}
-                onClick={() => setSelectedDay(isSelected ? null : dateKey)}
+                onClick={() => handleDayClick(dateKey)}
                 className={`relative w-full aspect-square flex items-center justify-center text-[11px] rounded-md cursor-pointer transition-colors border-none bg-transparent p-0 ${
                   isSelected
                     ? 'bg-[var(--app-accent)] text-white font-medium'
@@ -159,7 +138,7 @@ export function CalendarPanel(): JSX.Element {
                 }`}
               >
                 {day}
-                {hasNotes && !isSelected && (
+                {hasLinks && !isSelected && (
                   <span className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-[var(--app-accent)]" />
                 )}
               </button>
@@ -168,34 +147,84 @@ export function CalendarPanel(): JSX.Element {
         </div>
       </div>
 
-      {/* Selected day notes */}
+      {/* Selected day content */}
       <div className="flex-1 overflow-y-auto border-t-[0.5px] border-[var(--app-border)]">
-        {isLoading ? (
-          <div className="flex justify-center py-6">
-            <div className="w-4 h-4 rounded-full border-2 border-white/10 border-t-[var(--app-accent)] animate-spin" />
-          </div>
-        ) : selectedDay ? (
+        {selectedDay ? (
           <>
-            <div className="px-3 pt-2.5 pb-1 text-[10px] uppercase tracking-[0.07em] text-[var(--app-text-3)] font-medium">
-              {selectedNotes.length > 0
-                ? `${selectedNotes.length} nota${selectedNotes.length > 1 ? 's' : ''} em ${formatDisplayDate(selectedDay)}`
-                : `Nenhuma nota em ${formatDisplayDate(selectedDay)}`
-              }
+            {/* Day header */}
+            <div className="flex items-center justify-between px-3 pt-2.5 pb-1">
+              <span className="text-[10px] uppercase tracking-[0.07em] text-[var(--app-text-3)] font-medium">
+                {formatDisplayDate(selectedDay)}
+                {selectedLinks.length > 0 && (
+                  <span className="normal-case ml-1">({selectedLinks.length})</span>
+                )}
+              </span>
+
+              {/* Link current note button */}
+              {activeNote && (
+                <button
+                  onClick={handleLink}
+                  disabled={activeAlreadyLinked}
+                  title={activeAlreadyLinked ? 'Nota já vinculada' : 'Vincular nota atual'}
+                  className={`flex items-center gap-1 text-[10.5px] px-1.5 py-0.5 rounded transition-colors cursor-pointer border-none ${
+                    activeAlreadyLinked
+                      ? 'text-[var(--app-text-3)] bg-transparent opacity-40 cursor-default'
+                      : 'text-[var(--app-accent)] bg-[var(--app-accent-dim)] hover:opacity-80'
+                  }`}
+                >
+                  <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                    <path d="M4.5 1v7M1 4.5h7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                  </svg>
+                  Vincular
+                </button>
+              )}
             </div>
-            {selectedNotes.map((note) => (
-              <div
-                key={note.path}
-                onClick={() => handleOpenNote(note.path)}
-                className="flex items-center gap-2 mx-2 my-0.5 px-2.5 py-2 rounded-[var(--app-radius)] cursor-pointer hover:bg-[var(--app-hover)] transition-colors"
-              >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="text-[var(--app-text-3)] shrink-0">
-                  <rect x="2" y="1.5" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
-                  <line x1="4.5" y1="5" x2="9.5" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                  <line x1="4.5" y1="7.5" x2="9.5" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                </svg>
-                <span className="text-[11.5px] text-[var(--app-text-1)] truncate">{note.title}</span>
+
+            {/* Linked notes list */}
+            {selectedLinks.length === 0 ? (
+              <div className="px-3 py-3 text-[11px] text-[var(--app-text-3)]">
+                {activeNote
+                  ? 'Nenhuma nota vinculada. Clique em "Vincular" para adicionar a nota atual.'
+                  : 'Nenhuma nota vinculada a este dia.'
+                }
               </div>
-            ))}
+            ) : (
+              <ul>
+                {selectedLinks.map((relPath) => {
+                  const title = getTitleForPath(relPath)
+                  const isActive = relPath === activeRelPath
+                  return (
+                    <li key={relPath} className="group flex items-center gap-1 mx-2 my-0.5">
+                      <div
+                        onClick={() => {
+                          if (vaultPath) openNote(`${vaultPath}/${relPath}`)
+                        }}
+                        className={`flex-1 flex items-center gap-2 px-2.5 py-[7px] rounded-[var(--app-radius)] cursor-pointer hover:bg-[var(--app-hover)] transition-colors min-w-0 ${
+                          isActive ? 'text-[var(--app-accent)]' : ''
+                        }`}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" className="text-[var(--app-text-3)] shrink-0">
+                          <rect x="2" y="1.5" width="10" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                          <line x1="4.5" y1="5" x2="9.5" y2="5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                          <line x1="4.5" y1="7.5" x2="9.5" y2="7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                        </svg>
+                        <span className="text-[11.5px] text-[var(--app-text-1)] truncate">{title}</span>
+                      </div>
+                      {/* Unlink button */}
+                      <button
+                        onClick={() => handleUnlink(relPath)}
+                        title="Desvincular"
+                        className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-5 h-5 shrink-0 rounded text-[var(--app-text-3)] hover:text-[#F87171] hover:bg-[var(--app-hover)] transition-all cursor-pointer bg-transparent border-none"
+                      >
+                        <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                          <path d="M1.5 1.5l6 6M7.5 1.5l-6 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                        </svg>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
           </>
         ) : (
           <div className="flex items-center justify-center py-6 text-[11px] text-[var(--app-text-3)]">
@@ -205,29 +234,4 @@ export function CalendarPanel(): JSX.Element {
       </div>
     </div>
   )
-}
-
-function formatDisplayDate(dateKey: string): string {
-  const [, m, d] = dateKey.split('-').map(Number)
-  return `${d} de ${MONTHS[m - 1]}`
-}
-
-interface FileNode {
-  name: string
-  path: string
-  type: 'file' | 'dir'
-  children?: FileNode[]
-}
-
-function flattenFiles(nodes: FileNode[]): string[] {
-  const paths: string[] = []
-  for (const node of nodes) {
-    if (node.type === 'file' && node.name.endsWith('.md')) {
-      paths.push(node.path)
-    }
-    if (node.children) {
-      paths.push(...flattenFiles(node.children))
-    }
-  }
-  return paths
 }

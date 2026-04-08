@@ -24,12 +24,14 @@ interface EditorStore {
   isSaving: boolean
   saveError: string | null
   previewMode: PreviewMode
+  isPreviewOnly: boolean
   vimMode: string
   focusMode: boolean
   openNote: (path: string) => Promise<void>
   setContent: (content: string) => void
   save: () => Promise<void>
   setPreviewMode: (mode: PreviewMode) => void
+  togglePreviewOnly: () => void
   closeNote: () => void
   setVimMode: (mode: string) => void
   toggleFocusMode: () => void
@@ -41,6 +43,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   isSaving: false,
   saveError: null,
   previewMode: 'none',
+  isPreviewOnly: false,
   vimMode: 'normal',
   focusMode: false,
 
@@ -72,6 +75,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   setPreviewMode: (previewMode: PreviewMode) => set({ previewMode }),
+
+  togglePreviewOnly: () => set((s) => ({ isPreviewOnly: !s.isPreviewOnly })),
 
   closeNote: () => set({ activeNote: null, isDirty: false, saveError: null }),
 

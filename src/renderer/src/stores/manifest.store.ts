@@ -8,6 +8,7 @@ interface ManifestState {
   pinned: string[]
   inbox: string
   trash: TrashEntry[]
+  calendarLinks: Record<string, string[]>
   isLoaded: boolean
 
   // Full manifest helpers
@@ -36,6 +37,11 @@ interface ManifestState {
   updateTag: (name: string, updates: Partial<Tag>) => Promise<void>
   pinNote: (relativePath: string) => Promise<void>
   unpinNote: (relativePath: string) => Promise<void>
+  trashNote: (absolutePath: string) => Promise<void>
+  trashRestore: (trashPath: string) => Promise<void>
+  trashPurge: (trashPath?: string) => Promise<void>
+  calendarLink: (dateKey: string, relativePath: string) => Promise<void>
+  calendarUnlink: (dateKey: string, relativePath: string) => Promise<void>
 
   setView: (view: ManifestState['view'], id?: string) => void
 }
@@ -46,6 +52,7 @@ export const useManifestStore = create<ManifestState>((set, get) => ({
   pinned: [],
   inbox: 'inbox',
   trash: [],
+  calendarLinks: {},
   isLoaded: false,
 
   manifest: { ...DEFAULT_MANIFEST },
@@ -62,6 +69,7 @@ export const useManifestStore = create<ManifestState>((set, get) => ({
       pinned: m.pinned,
       inbox: m.inbox,
       trash: m.trash ?? [],
+      calendarLinks: m.calendarLinks ?? {},
       isLoaded: true
     })
   },
@@ -155,6 +163,49 @@ export const useManifestStore = create<ManifestState>((set, get) => ({
     await window.electronAPI.manifest.unpinNote(relativePath)
     const { manifest } = get()
     get().setPinned(manifest.pinned.filter((p) => p !== relativePath))
+  },
+
+  trashNote: async (absolutePath: string) => {
+    const entry = await window.electronAPI.manifest.trashNote(absolutePath)
+    const { trash } = get()
+    set({ trash: [...trash, entry] })
+  },
+
+  trashRestore: async (trashPath: string) => {
+    await window.electronAPI.manifest.trashRestore(trashPath)
+    set((s) => ({ trash: s.trash.filter((e) => e.trashPath !== trashPath) }))
+  },
+
+  trashPurge: async (trashPath?: string) => {
+    await window.electronAPI.manifest.trashPurge(trashPath)
+    if (trashPath) {
+      set((s) => ({ trash: s.trash.filter((e) => e.trashPath !== trashPath) }))
+    } else {
+      set({ trash: [] })
+    }
+  },
+
+  calendarLink: async (dateKey: string, relativePath: string) => {
+    await window.electronAPI.manifest.calendarLink(dateKey, relativePath)
+    set((s) => {
+      const existing = s.calendarLinks[dateKey] ?? []
+      if (existing.includes(relativePath)) return s
+      return { calendarLinks: { ...s.calendarLinks, [dateKey]: [...existing, relativePath] } }
+    })
+  },
+
+  calendarUnlink: async (dateKey: string, relativePath: string) => {
+    await window.electronAPI.manifest.calendarUnlink(dateKey, relativePath)
+    set((s) => {
+      const updated = (s.calendarLinks[dateKey] ?? []).filter((p) => p !== relativePath)
+      const next = { ...s.calendarLinks }
+      if (updated.length === 0) {
+        delete next[dateKey]
+      } else {
+        next[dateKey] = updated
+      }
+      return { calendarLinks: next }
+    })
   },
 
   setView: (view, id) => {

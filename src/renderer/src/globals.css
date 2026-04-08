@@ -5,103 +5,136 @@
 @import "@fontsource/jetbrains-mono/700.css";
 
 @theme {
-  --color-primary: oklch(0.62 0.22 288);
+  --color-primary: #C05010;
   --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
-/* ── App design tokens (new layout) ──────────────────── */
+/* ── App design tokens ────────────────────────────────── */
 :root {
-  --app-rail: #0A0A0E;
-  --app-sidebar: #0F0F14;
-  --app-list: #131318;
-  --app-main: #16161C;
-  --app-accent: #7C6EF5;
-  --app-accent-dim: rgba(124,110,245,0.12);
-  --app-accent-glow: rgba(124,110,245,0.2);
-  --app-border: rgba(255,255,255,0.055);
-  --app-border-mid: rgba(255,255,255,0.09);
-  --app-text-1: #EEEEF2;
-  --app-text-2: #8888A0;
-  --app-text-3: #505062;
-  --app-hover: rgba(255,255,255,0.04);
-  --app-selected: rgba(124,110,245,0.11);
-  --app-tag-bg: rgba(255,255,255,0.06);
-  --app-tag-text: #9090B0;
-  --app-radius: 6px;
-  --app-surface: #1A1A22;
+  /* Superfícies */
+  --app-rail:        #0A0400;
+  --app-sidebar:     #0E0600;
+  --app-list:        #130900;
+  --app-main:        #1A0E05;
+  --app-surface:     #221408;
+
+  /* Acento — terracota */
+  --app-accent:      #C05010;
+  --app-accent-dim:  rgba(192, 80, 16, 0.12);
+  --app-accent-glow: rgba(192, 80, 16, 0.20);
+
+  /* Bordas */
+  --app-border:      #2C1A0A;
+  --app-border-mid:  #3C2412;
+
+  /* Texto */
+  --app-text-1:      #F2E2CC;   /* pergaminho claro — alto contraste */
+  --app-text-2:      #C09060;   /* terracota médio — ~7:1 em fundos escuros */
+  --app-text-3:      #907055;   /* muted — ~4:1 mínimo aceitável */
+
+  /* Estados */
+  --app-hover:       rgba(192, 80, 16, 0.07);
+  --app-selected:    rgba(192, 80, 16, 0.13);
+  --app-tag-bg:      rgba(192, 80, 16, 0.09);
+  --app-tag-text:    #C09060;
+  --app-radius:      6px;
+  --note-card-bg:    transparent;
+  --note-card-border: transparent;
 
   /* Editor tokens */
-  --color-heading: #EEEEF2;
-  --color-primary: #7C6EF5;
-  --color-muted: #505062;
-  --bg-elevated: rgba(255,255,255,0.06);
+  --color-heading:   #F2E2CC;
+  --color-primary:   #D06828;
+  --color-muted:     #907055;
+  --bg-elevated:     rgba(192, 80, 16, 0.09);
 }
 
-/* ── Dark theme (default) ─────────────────────────────── */
+/* ── Tema padrão (escuro / terracota) ─────────────────── */
 :root,
 [data-theme="dark"] {
   /* Backgrounds */
-  --bg:         #080808;
-  --surface:    #0f0f0f;
-  --surface-2:  #141414;
-  --surface-3:  #1a1a1a;
-  --surface-4:  #212121;
+  --bg:         #0E0600;
+  --surface:    #130900;
+  --surface-2:  #1A0E05;
+  --surface-3:  #221408;
+  --surface-4:  #2A1A08;
 
   /* Borders */
-  --border:     #1f1f1f;
-  --border-2:   #272727;
-  --border-3:   #333333;
+  --border:     #2C1A0A;
+  --border-2:   #3C2412;
+  --border-3:   #4E3018;
 
   /* Text */
-  --text:       #ececec;
-  --text-2:     #999999;
-  --text-3:     #555555;
-  --text-4:     #333333;
+  --text:       #F2E2CC;
+  --text-2:     #C09060;
+  --text-3:     #907055;
+  --text-4:     #5A3820;
 
-  /* Accent – violet */
-  --accent:         oklch(0.62 0.22 288);
-  --accent-hover:   oklch(0.68 0.22 288);
-  --accent-dim:     oklch(0.62 0.22 288 / 0.12);
-  --accent-border:  oklch(0.62 0.22 288 / 0.3);
+  /* Accent — terracota */
+  --accent:        #C05010;
+  --accent-hover:  #D06828;
+  --accent-dim:    rgba(192, 80, 16, 0.12);
+  --accent-border: rgba(192, 80, 16, 0.35);
 
   /* Semantic */
-  --success: #22c55e;
-  --warning: #eab308;
-  --error:   #ef4444;
+  --success: #5DC87A;
+  --warning: #F5D068;
+  --error:   #F5A0A0;
 }
 
-/* ── Light theme ──────────────────────────────────────── */
+/* ── Tema claro ───────────────────────────────────────── */
 [data-theme="light"] {
-  --bg:         #fafafa;
-  --surface:    #ffffff;
-  --surface-2:  #f5f5f5;
-  --surface-3:  #efefef;
-  --surface-4:  #e8e8e8;
+  /* App tokens — overrides para light */
+  --app-rail:        #E8D4B4;
+  --app-sidebar:     #EDE0C8;
+  --app-list:        #E8D8BE;
+  --app-main:        #FFFAF4;
+  --app-surface:     #FFF7EE;
+  --app-accent:      #C05010;
+  --app-accent-dim:  rgba(192, 80, 16, 0.10);
+  --app-accent-glow: rgba(192, 80, 16, 0.15);
+  --app-border:      #DEC8A8;
+  --app-border-mid:  #CEB898;
+  --app-text-1:      #1E0E04;
+  --app-text-2:      #6A3E20;
+  --app-text-3:      #8A5C38;
+  --app-hover:       rgba(192, 80, 16, 0.06);
+  --app-selected:    rgba(192, 80, 16, 0.10);
+  --app-tag-bg:      rgba(192, 80, 16, 0.07);
+  --app-tag-text:    #785040;
+  --note-card-bg:    rgba(255, 255, 255, 0.60);
+  --note-card-border: var(--app-border);
 
-  --border:     #e8e8e8;
-  --border-2:   #dcdcdc;
-  --border-3:   #cccccc;
+  /* Semântico */
+  --bg:         #FFFAF4;
+  --surface:    #FFFFFF;
+  --surface-2:  #F5EAD8;
+  --surface-3:  #EDE0CC;
+  --surface-4:  #E4D4BC;
 
-  --text:       #111111;
-  --text-2:     #555555;
-  --text-3:     #999999;
-  --text-4:     #c4c4c4;
+  --border:     #E8D4B8;
+  --border-2:   #D8C0A0;
+  --border-3:   #C8A880;
 
-  --accent:         oklch(0.50 0.22 288);
-  --accent-hover:   oklch(0.55 0.22 288);
-  --accent-dim:     oklch(0.50 0.22 288 / 0.10);
-  --accent-border:  oklch(0.50 0.22 288 / 0.25);
+  --text:       #1E0E04;
+  --text-2:     #6A3E20;
+  --text-3:     #8A5C38;
+  --text-4:     #B08860;
 
-  --success: #16a34a;
-  --warning: #ca8a04;
-  --error:   #dc2626;
+  --accent:        #C05010;
+  --accent-hover:  #963A0A;
+  --accent-dim:    rgba(192, 80, 16, 0.10);
+  --accent-border: rgba(192, 80, 16, 0.25);
+
+  --success: #1A6028;
+  --warning: #C07808;
+  --error:   #A02020;
 
   /* Editor tokens (light) */
-  --color-heading: #111111;
-  --color-primary: oklch(0.50 0.22 288);
-  --color-muted: #999999;
-  --bg-elevated: rgba(0,0,0,0.05);
+  --color-heading:   #2A1408;
+  --color-primary:   #C05010;
+  --color-muted:     #A07858;
+  --bg-elevated:     rgba(0, 0, 0, 0.04);
 }
 
 /* ── Base ─────────────────────────────────────────────── */

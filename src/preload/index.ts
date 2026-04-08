@@ -24,21 +24,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     listInNotebook: (notebookId: string) => ipcRenderer.invoke('notes:list-in-notebook', notebookId),
     createInNotebook: (notebookId: string, title?: string) => ipcRenderer.invoke('notes:create-in-notebook', notebookId, title),
     watchStart: (vaultPath: string) => ipcRenderer.invoke('notes:watch-start', vaultPath),
-    watchStop: () => ipcRenderer.invoke('notes:watch-stop')
+    watchStop: () => ipcRenderer.invoke('notes:watch-stop'),
+    findByTitle: (title: string) => ipcRenderer.invoke('notes:find-by-title', title),
+    getBacklinks: (relativePath: string) => ipcRenderer.invoke('notes:get-backlinks', relativePath),
+    saveImage: (dataUrl: string, filename: string) => ipcRenderer.invoke('notes:save-image', dataUrl, filename)
   },
 
   sync: {
     configure: (repoUrl: string) => ipcRenderer.invoke('sync:configure', repoUrl),
     push: (message?: string) => ipcRenderer.invoke('sync:push', message),
     pull: () => ipcRenderer.invoke('sync:pull'),
-    resolveConflict: (path: string, choice: 'local' | 'remote') => ipcRenderer.invoke('sync:resolve-conflict', path, choice),
-    getStatus: () => ipcRenderer.invoke('sync:get-status'),
-    getHistory: (relativePath?: string) => ipcRenderer.invoke('sync:get-history', relativePath),
-    getDiff: (relativePath: string, oidA: string, oidB: string) => ipcRenderer.invoke('sync:get-diff', relativePath, oidA, oidB),
-    restoreVersion: (relativePath: string, oid: string) => ipcRenderer.invoke('sync:restore-version', relativePath, oid),
-    setInterval: (minutes: number) => ipcRenderer.invoke('sync:set-interval', minutes),
-    setAutoSync: (intervalMinutes: number) => ipcRenderer.invoke('sync:set-auto', intervalMinutes),
-    stopAutoSync: () => ipcRenderer.invoke('sync:stop-auto')
+    resolveConflict: (path: string, choice: 'local' | 'remote', remoteContent?: string) =>
+      ipcRenderer.invoke('sync:resolve-conflict', path, choice, remoteContent),
+    getStatus: () => ipcRenderer.invoke('sync:get-status')
   },
 
   manifest: {
@@ -57,7 +55,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     trashRestore: (trashPath: string) => ipcRenderer.invoke('manifest:trash-restore', trashPath),
     trashList: () => ipcRenderer.invoke('manifest:trash-list'),
     trashPurge: (trashPath?: string) => ipcRenderer.invoke('manifest:trash-purge', trashPath),
-    noteMove: (absolutePath: string, notebookId: string | null) => ipcRenderer.invoke('manifest:note-move', absolutePath, notebookId)
+    noteMove: (absolutePath: string, notebookId: string | null) => ipcRenderer.invoke('manifest:note-move', absolutePath, notebookId),
+    calendarLink: (dateKey: string, relativePath: string) => ipcRenderer.invoke('manifest:calendar-link', dateKey, relativePath),
+    calendarUnlink: (dateKey: string, relativePath: string) => ipcRenderer.invoke('manifest:calendar-unlink', dateKey, relativePath)
   },
 
   auth: {
@@ -99,15 +99,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     quit: () => ipcRenderer.invoke('app:quit')
   },
 
+  templates: {
+    list: () => ipcRenderer.invoke('templates:list')
+  },
+
+  history: {
+    listCommits: (relativePath: string) => ipcRenderer.invoke('history:list-commits', relativePath),
+    getFileAtCommit: (sha: string, relativePath: string) => ipcRenderer.invoke('history:get-file-at-commit', sha, relativePath)
+  },
+
   // Events
   onFileTreeChanged: (callback: () => void) => {
     ipcRenderer.on('filetree:changed', callback)
-  },
-  onSyncAutoSynced: (callback: (data: { timestamp: string; files: number }) => void) => {
-    ipcRenderer.on('sync:auto-synced', (_e, data) => callback(data))
-  },
-  onSyncAutoError: (callback: (data: { error: string }) => void) => {
-    ipcRenderer.on('sync:auto-error', (_e, data) => callback(data))
   },
   onSyncConflictDetected: (callback: (data: { conflicts: import('../renderer/src/types/sync').ConflictFile[] }) => void) => {
     ipcRenderer.on('sync:conflict-detected', (_e, data) => callback(data))

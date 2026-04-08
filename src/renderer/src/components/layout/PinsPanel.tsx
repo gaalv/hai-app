@@ -4,7 +4,7 @@ import { useEditorStore } from '../../stores/editor.store'
 import type { Notebook } from '../../types/manifest'
 
 const CARDS_COUNT = 4
-const DEFAULT_COLOR = '#7C6EF5'
+const DEFAULT_COLOR = '#C05010'
 
 interface PinnedNote {
   relativePath: string

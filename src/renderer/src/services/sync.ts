@@ -1,25 +1,10 @@
 import { useSyncStore } from '../stores/sync.store'
 
-let autoListenerRegistered = false
+let conflictListenerRegistered = false
 
-function ensureAutoListeners(): void {
-  if (autoListenerRegistered) return
-  autoListenerRegistered = true
-
-  window.electronAPI.onSyncAutoSynced((data) => {
-    useSyncStore.getState().applyStatus({
-      status: 'synced',
-      pendingChanges: 0,
-      lastSync: data.timestamp,
-      lastError: null,
-      repoUrl: useSyncStore.getState().repoUrl
-    })
-  })
-
-  window.electronAPI.onSyncAutoError((data) => {
-    useSyncStore.getState().setLastError(data.error)
-    useSyncStore.getState().setStatus('error')
-  })
+function ensureConflictListener(): void {
+  if (conflictListenerRegistered) return
+  conflictListenerRegistered = true
 
   window.electronAPI.onSyncConflictDetected((data) => {
     useSyncStore.getState().setConflicts(data.conflicts)
@@ -46,10 +31,10 @@ async function configure(repoUrl: string): Promise<void> {
   }
 }
 
-async function push(): Promise<void> {
+async function push(message?: string): Promise<void> {
   useSyncStore.getState().setStatus('syncing')
   try {
-    const result = await window.electronAPI.sync.push()
+    const result = await window.electronAPI.sync.push(message)
     useSyncStore.getState().applyStatus({
       status: 'synced',
       pendingChanges: 0,
@@ -89,8 +74,8 @@ async function pull(): Promise<void> {
   }
 }
 
-async function resolveConflict(filePath: string, choice: 'local' | 'remote'): Promise<void> {
-  await window.electronAPI.sync.resolveConflict(filePath, choice)
+async function resolveConflict(filePath: string, choice: 'local' | 'remote', remoteContent?: string): Promise<void> {
+  await window.electronAPI.sync.resolveConflict(filePath, choice, remoteContent)
   const remaining = useSyncStore.getState().conflicts.filter((c) => c.path !== filePath)
   useSyncStore.getState().setConflicts(remaining)
   if (remaining.length === 0) useSyncStore.getState().setStatus('synced')
@@ -101,46 +86,12 @@ async function refreshStatus(): Promise<void> {
     const status = await window.electronAPI.sync.getStatus()
     useSyncStore.getState().applyStatus(status)
   } catch {
-    // silencioso — status pode falhar se git não inicializado ainda
+    // Silencioso — status pode falhar se vault não configurado ainda
   }
-}
-
-async function getHistory(relativePath?: string): Promise<void> {
-  try {
-    const history = await window.electronAPI.sync.getHistory(relativePath)
-    useSyncStore.getState().setHistory(history)
-  } catch {
-    useSyncStore.getState().setHistory([])
-  }
-}
-
-async function getDiff(relativePath: string, oidA: string, oidB: string): Promise<void> {
-  try {
-    const diff = await window.electronAPI.sync.getDiff(relativePath, oidA, oidB)
-    useSyncStore.getState().setDiff(diff)
-  } catch {
-    useSyncStore.getState().setDiff(null)
-  }
-}
-
-async function restoreVersion(relativePath: string, oid: string): Promise<string> {
-  const content = await window.electronAPI.sync.restoreVersion(relativePath, oid)
-  return content
-}
-
-async function setAutoSync(intervalMinutes: number): Promise<void> {
-  await window.electronAPI.sync.setAutoSync(intervalMinutes)
-  useSyncStore.getState().setAutoSyncInterval(intervalMinutes)
-  ensureAutoListeners()
-}
-
-async function stopAutoSync(): Promise<void> {
-  await window.electronAPI.sync.stopAutoSync()
-  useSyncStore.getState().setAutoSyncInterval(0)
 }
 
 function init(): void {
-  ensureAutoListeners()
+  ensureConflictListener()
   refreshStatus()
 }
 
@@ -150,10 +101,5 @@ export const syncService = {
   pull,
   resolveConflict,
   refreshStatus,
-  getHistory,
-  getDiff,
-  restoreVersion,
-  setAutoSync,
-  stopAutoSync,
   init
 }

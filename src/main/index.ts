@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, globalShortcut, ipcMain } from 'electron'
+import { app, BrowserWindow, shell, globalShortcut, ipcMain, nativeImage } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 import { registerVaultHandlers } from './ipc/vault.ipc'
@@ -10,6 +10,8 @@ import { registerSearchHandlers } from './ipc/search.ipc'
 import { registerExportHandlers } from './ipc/export.ipc'
 import { registerAppHandlers } from './ipc/app.ipc'
 import { registerRepoHandlers } from './ipc/repo.ipc'
+import { registerTemplateHandlers } from './ipc/templates.ipc'
+import { registerHistoryHandlers } from './ipc/history.ipc'
 
 let mainWindow: BrowserWindow | null = null
 let quickCaptureWindow: BrowserWindow | null = null
@@ -103,6 +105,16 @@ ipcMain.handle('quick-capture:close', () => {
 })
 
 app.whenReady().then(() => {
+  // Dock icon (macOS dev + prod)
+  if (process.platform === 'darwin') {
+    const iconPath = is.dev
+      ? join(__dirname, '../../resources/icon.png')
+      : join(process.resourcesPath, 'icon.png')
+    try {
+      app.dock.setIcon(nativeImage.createFromPath(iconPath))
+    } catch { /* ignora se ícone não encontrado */ }
+  }
+
   registerVaultHandlers()
   registerNotesHandlers()
   registerSyncHandlers()
@@ -112,6 +124,8 @@ app.whenReady().then(() => {
   registerExportHandlers()
   registerAppHandlers()
   registerRepoHandlers()
+  registerTemplateHandlers()
+  registerHistoryHandlers()
 
   createWindow()
 

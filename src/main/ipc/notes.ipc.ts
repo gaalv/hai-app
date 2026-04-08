@@ -196,4 +196,110 @@ export function registerNotesHandlers(): void {
       watcher = null
     }
   })
+
+  ipcMain.handle('notes:find-by-title', async (_event, title: string) => {
+    const vaultPath = getVaultPath()
+
+    async function walk(dir: string): Promise<{ path: string; content: string } | null> {
+      const entries = await fs.readdir(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) continue
+        const entryPath = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          const found = await walk(entryPath)
+          if (found) return found
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          const filenameTitle = entry.name.replace(/\.md$/, '')
+          if (filenameTitle.toLowerCase() === title.toLowerCase()) {
+            const content = await fs.readFile(entryPath, 'utf-8')
+            return { path: entryPath, content }
+          }
+          try {
+            const raw = await fs.readFile(entryPath, 'utf-8')
+            const parsed = matter(raw)
+            if (
+              parsed.data.title &&
+              String(parsed.data.title).toLowerCase() === title.toLowerCase()
+            ) {
+              return { path: entryPath, content: raw }
+            }
+          } catch { /* skip */ }
+        }
+      }
+      return null
+    }
+
+    return walk(vaultPath)
+  })
+
+  ipcMain.handle('notes:get-backlinks', async (_event, absolutePath: string) => {
+    const vaultPath = getVaultPath()
+    const relativePath = path.relative(vaultPath, absolutePath)
+    const targetName = path.basename(relativePath, '.md')
+
+    let targetTitle = targetName
+    try {
+      const raw = await fs.readFile(absolutePath, 'utf-8')
+      const parsed = matter(raw)
+      if (parsed.data.title) targetTitle = String(parsed.data.title)
+    } catch { /* use filename */ }
+
+    const results: Array<{ path: string; title: string; snippet: string }> = []
+
+    async function walk(dir: string): Promise<void> {
+      const entries = await fs.readdir(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) continue
+        const entryPath = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          await walk(entryPath)
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          const entryRelative = path.relative(vaultPath, entryPath)
+          if (entryRelative === relativePath) continue
+          try {
+            const raw = await fs.readFile(entryPath, 'utf-8')
+            const pattern = new RegExp(`\\[\\[${escapeRegex(targetTitle)}\\]\\]|\\[\\[${escapeRegex(targetName)}\\]\\]`)
+            if (!pattern.test(raw)) continue
+
+            const parsed = matter(raw)
+            const noteTitle = (parsed.data.title as string) || entry.name.replace(/\.md$/, '')
+
+            const lines = raw.split('\n')
+            let snippet = ''
+            for (const line of lines) {
+              if (pattern.test(line)) {
+                snippet = line.replace(/^#+\s*/, '').trim().slice(0, 120)
+                break
+              }
+            }
+
+            results.push({ path: entryPath, title: noteTitle, snippet })
+          } catch { /* skip */ }
+        }
+      }
+    }
+
+    function escapeRegex(str: string): string {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    }
+
+    await walk(vaultPath)
+    return results
+  })
+
+  ipcMain.handle('notes:save-image', async (_event, dataUrl: string, filename: string) => {
+    const vaultPath = getVaultPath()
+    const assetsDir = path.join(vaultPath, 'assets')
+    await fs.mkdir(assetsDir, { recursive: true })
+
+    const base64 = dataUrl.split(',')[1]
+    const buffer = Buffer.from(base64, 'base64')
+
+    const ext = dataUrl.includes('image/png') ? 'png' : dataUrl.includes('image/jpeg') ? 'jpg' : 'png'
+    const safeName = filename || `image-${Date.now()}.${ext}`
+    const filePath = path.join(assetsDir, safeName)
+
+    await fs.writeFile(filePath, buffer)
+    return { relativePath: `assets/${safeName}` }
+  })
 }

@@ -31,19 +31,16 @@ export interface ElectronAPI {
     createInNotebook: (notebookId: string, title?: string) => Promise<NoteListItem>
     watchStart: (vaultPath: string) => Promise<void>
     watchStop: () => Promise<void>
+    findByTitle: (title: string) => Promise<{ path: string; content: string } | null>
+    getBacklinks: (relativePath: string) => Promise<Array<{ path: string; title: string; snippet: string }>>
+    saveImage: (dataUrl: string, filename: string) => Promise<{ relativePath: string }>
   }
   sync: {
     configure: (repoUrl: string) => Promise<{ success: boolean }>
     push: (message?: string) => Promise<import('./sync').PushResult>
     pull: () => Promise<import('./sync').PullResult>
-    resolveConflict: (path: string, choice: 'local' | 'remote') => Promise<{ success: boolean }>
+    resolveConflict: (path: string, choice: 'local' | 'remote', remoteContent?: string) => Promise<{ success: boolean }>
     getStatus: () => Promise<import('./sync').SyncStatus>
-    getHistory: (relativePath?: string) => Promise<CommitEntry[]>
-    getDiff: (relativePath: string, oidA: string, oidB: string) => Promise<{ before: string; after: string }>
-    restoreVersion: (relativePath: string, oid: string) => Promise<string>
-    setInterval: (minutes: number) => Promise<void>
-    setAutoSync: (intervalMinutes: number) => Promise<void>
-    stopAutoSync: () => Promise<void>
   }
   manifest: {
     load: () => Promise<HaiManifest>
@@ -62,6 +59,8 @@ export interface ElectronAPI {
     trashList: () => Promise<TrashEntry[]>
     trashPurge: (trashPath?: string) => Promise<void>
     noteMove: (absolutePath: string, notebookId: string | null) => Promise<string>
+    calendarLink: (dateKey: string, relativePath: string) => Promise<void>
+    calendarUnlink: (dateKey: string, relativePath: string) => Promise<void>
   }
   auth: {
     getToken: () => Promise<string | null>
@@ -103,19 +102,16 @@ export interface ElectronAPI {
     getVersion: () => Promise<string>
     quit: () => Promise<void>
   }
+  templates: {
+    list: () => Promise<Array<{ name: string; content: string; isBuiltin: boolean }>>
+  }
+  history: {
+    listCommits: (relativePath: string) => Promise<Array<{ sha: string; message: string; author: string; date: string }>>
+    getFileAtCommit: (sha: string, relativePath: string) => Promise<string>
+  }
   onFileTreeChanged: (callback: () => void) => void
-  onSyncAutoSynced: (callback: (data: { timestamp: string; files: number }) => void) => void
-  onSyncAutoError: (callback: (data: { error: string }) => void) => void
   onSyncConflictDetected: (callback: (data: { conflicts: import('./sync').ConflictFile[] }) => void) => void
   onAuthChanged: (callback: (event: string) => void) => void
-}
-
-export interface CommitEntry {
-  oid: string
-  message: string
-  author: string
-  timestamp: string
-  files: string[]
 }
 
 export interface SearchResult {

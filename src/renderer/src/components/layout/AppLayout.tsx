@@ -1,31 +1,85 @@
-import { useState, useCallback } from 'react'
-import { TitleBar } from './TitleBar'
-import { Rail } from './Rail'
-import { Sidebar } from './Sidebar'
-import { NoteList } from './NoteList'
-import { EditorPanel } from './EditorPanel'
-import { SearchPanel } from './SearchPanel'
-import { TagsPanel } from './TagsPanel'
-import { NotebooksPanel } from './NotebooksPanel'
-import { StatusBar } from './StatusBar'
-import { CalendarPanel } from '../calendar/CalendarPanel'
-import { SettingsModal } from '../settings/SettingsModal'
+import { useState, useCallback, useRef, useEffect } from "react";
+import { TitleBar } from "./TitleBar";
+import { Rail } from "./Rail";
+import { Sidebar } from "./Sidebar";
+import { NoteList } from "./NoteList";
+import { EditorPanel } from "./EditorPanel";
 
-type Tab = 'notes' | 'notebooks' | 'search' | 'tags'
+import { CalendarPanel } from "../calendar/CalendarPanel";
+import { SettingsModal } from "../settings/SettingsModal";
+import { ProfileModal } from "../profile/ProfileModal";
+import { TemplatePickerModal, applyTemplate } from "../editor/TemplatePickerModal";
+import { SpotlightSearch } from "../search/SpotlightSearch";
+import { useAuthStore } from "../../stores/auth.store";
+import { useManifestStore } from "../../stores/manifest.store";
+import { useNotesStore } from "../../stores/notes.store";
+import { useEditorStore } from "../../stores/editor.store";
+import { useVaultStore } from "../../stores/vault.store";
+import { useGlobalShortcuts } from "../../hooks/useGlobalShortcuts";
 
-interface AppLayoutProps {
-  tab: Tab
-  setTab: (tab: Tab) => void
-}
+export function AppLayout(): JSX.Element {
+  // Load vault config into renderer store so components can read the path
+  const setVault = useVaultStore((s) => s.setVault)
+  const vaultConfig = useVaultStore((s) => s.config)
+  useEffect(() => {
+    if (!vaultConfig) {
+      window.electronAPI.vault.load().then((c) => { if (c) setVault(c) })
+    }
+  }, [])
 
-export function AppLayout({ tab, setTab }: AppLayoutProps): JSX.Element {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [calendarOpen, setCalendarOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const { logout } = useAuthStore();
 
-  const handleToggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
-  const handleToggleCalendar = useCallback(() => setCalendarOpen((v) => !v), [])
-  const handleOpenSettings = useCallback(() => setSettingsOpen(true), [])
+  const handleToggleSidebar = useCallback(() => setSidebarOpen((v) => !v), []);
+  const handleToggleCalendar = useCallback(() => setCalendarOpen((v) => !v), []);
+  const handleOpenProfile = useCallback(() => setProfileOpen(true), []);
+  const handleOpenSettings = useCallback(() => setSettingsOpen(true), []);
+  const handleOpenSpotlight = useCallback(() => setSpotlightOpen(true), []);
+
+  const { activeNotebook } = useManifestStore();
+  const { createNote, selectNote } = useNotesStore();
+  const { activeNote, closeNote, togglePreviewOnly, toggleFocusMode } = useEditorStore();
+  const openNote = useEditorStore((s) => s.openNote);
+
+  const activeNotebookRef = useRef(activeNotebook);
+  activeNotebookRef.current = activeNotebook;
+
+  const handleNewNote = useCallback(() => {
+    if (!activeNotebookRef.current) return;
+    setTemplatePickerOpen(true);
+  }, []);
+
+  const handleTemplateSelect = useCallback(async (templateContent: string) => {
+    setTemplatePickerOpen(false);
+    const nbId = activeNotebookRef.current;
+    if (!nbId) return;
+    const note = await createNote(nbId);
+    if (templateContent) {
+      const stem = note.absolutePath.split('/').pop()?.replace(/\.md$/, '') ?? '';
+      const processed = applyTemplate(templateContent, stem);
+      await window.electronAPI.notes.save(note.absolutePath, processed);
+    }
+    await openNote(note.absolutePath);
+    selectNote(note.absolutePath);
+  }, [createNote, openNote, selectNote]);
+
+  const handleCloseNote = useCallback(() => {
+    if (activeNote) closeNote();
+  }, [activeNote, closeNote]);
+
+  useGlobalShortcuts({
+    onNewNote: handleNewNote,
+    onCloseNote: handleCloseNote,
+    onOpenSettings: handleOpenSettings,
+    onToggleFocusMode: toggleFocusMode,
+    onTogglePreviewOnly: togglePreviewOnly,
+    onOpenSpotlight: handleOpenSpotlight,
+  });
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-[var(--app-main)] text-[var(--app-text-1)] text-[13px] font-sans antialiased select-none">
@@ -38,25 +92,13 @@ export function AppLayout({ tab, setTab }: AppLayoutProps): JSX.Element {
 
       {/* Main content below titlebar */}
       <div className="flex flex-1 overflow-hidden">
-        <Rail
-          activeTab={tab}
-          onTabChange={(t) => setTab(t as Tab)}
-          onAvatarClick={handleOpenSettings}
-          onSettingsClick={handleOpenSettings}
-        />
+        <Rail onAvatarClick={handleOpenProfile} />
 
-        {/* Panel host */}
+        {/* 3-column layout */}
         <div className="flex flex-1 overflow-hidden">
-          {tab === 'notes' && (
-            <div className="flex flex-1 overflow-hidden">
-              {sidebarOpen && <Sidebar />}
-              <NoteList />
-              <EditorPanel />
-            </div>
-          )}
-          {tab === 'notebooks' && <NotebooksPanel />}
-          {tab === 'search' && <SearchPanel />}
-          {tab === 'tags' && <TagsPanel />}
+          {sidebarOpen && <Sidebar />}
+          <NoteList />
+          <EditorPanel />
         </div>
 
         {/* Calendar sidebar (right) */}
@@ -67,11 +109,26 @@ export function AppLayout({ tab, setTab }: AppLayoutProps): JSX.Element {
         )}
       </div>
 
-      {/* Status bar */}
-      <StatusBar />
-
-      {/* Settings modal */}
+      {/* Modals */}
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {profileOpen && (
+        <ProfileModal
+          onClose={() => setProfileOpen(false)}
+          onLogout={() => {
+            setProfileOpen(false);
+            logout();
+          }}
+        />
+      )}
+      {templatePickerOpen && (
+        <TemplatePickerModal
+          onSelect={handleTemplateSelect}
+          onCancel={() => setTemplatePickerOpen(false)}
+        />
+      )}
+      {spotlightOpen && (
+        <SpotlightSearch onClose={() => setSpotlightOpen(false)} />
+      )}
     </div>
-  )
+  );
 }

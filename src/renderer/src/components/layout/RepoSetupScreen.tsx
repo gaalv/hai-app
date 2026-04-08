@@ -53,12 +53,9 @@ export function RepoSetupScreen({ onSetup }: RepoSetupScreenProps): JSX.Element 
       />
 
       <div className="relative z-[2] w-[400px] bg-[rgba(15,15,20,0.95)] border-[0.5px] border-[var(--app-border-mid)] rounded-2xl px-8 pt-9 pb-8 backdrop-blur-[20px] titlebar-no-drag">
-        {/* Logo — centered */}
+        {/* Logo — apenas ícone */}
         <div className="flex flex-col items-center mb-7">
-          <HaiIcon size={44} className="mb-2.5" />
-          <div className="text-[15px] font-medium text-[var(--app-text-1)] tracking-[-0.3px]">
-            Hai
-          </div>
+          <HaiIcon size={52} />
         </div>
 
         {mode === 'choose' && (
