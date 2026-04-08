@@ -1,0 +1,57 @@
+name: CI
+
+# Validates that the codebase type-checks and builds cleanly on every push to
+# main and on all pull requests. No artifacts are uploaded — this is a
+# pure correctness gate.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    name: Type-check and build
+    runs-on: macos-latest
+
+    steps:
+      # ── 1. Source ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js ────────────────────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── 3. Cache node_modules ─────────────────────────────────────────────
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      # ── 4. Install dependencies ───────────────────────────────────────────
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      # ── 5. Type-check ─────────────────────────────────────────────────────
+      # Runs both tsconfig.node.json (main + preload) and tsconfig.web.json
+      # (renderer) via the composite `typecheck` script defined in package.json.
+      - name: Type-check (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      # ── 6. Build ──────────────────────────────────────────────────────────
+      # `npm run build` = typecheck + electron-vite build (no electron-builder
+      # packaging step). This confirms the Vite bundle compiles successfully
+      # without producing a full installer, keeping CI fast.
+      #
+      # HAI_GITHUB_CLIENT_ID is intentionally left empty here — the vite config
+      # defaults it to an empty string, which is fine for a build-validity check.
+      - name: Build (electron-vite only, no packaging)
+        run: npm run build

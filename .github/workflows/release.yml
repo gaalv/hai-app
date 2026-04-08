@@ -1,0 +1,78 @@
+name: Release
+
+# Triggers:
+#   - Push of version tags (e.g. v1.0.0, v2.3.1)
+#   - Manual dispatch from the GitHub Actions UI
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    name: Build macOS DMG and publish release
+    runs-on: macos-latest
+
+    # Required so softprops/action-gh-release can create releases and upload assets
+    permissions:
+      contents: write
+
+    steps:
+      # ── 1. Source ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js ────────────────────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── 3. Cache node_modules ─────────────────────────────────────────────
+      # Restores node_modules when package-lock.json hasn't changed,
+      # saving ~60-90s of npm ci on subsequent runs.
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        id: cache-node-modules
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      # ── 4. Install dependencies ───────────────────────────────────────────
+      # Skipped when the cache is an exact hit on package-lock.json hash.
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      # ── 5. Build macOS binaries ───────────────────────────────────────────
+      # electron.vite.config.ts reads HAI_GITHUB_CLIENT_ID via loadEnv() and
+      # injects it into the bundle at build time via Vite's `define` option.
+      # HAI_GITHUB_APP_SLUG defaults to 'hai-notes' in the vite config but can
+      # also be overridden here if needed.
+      #
+      # NOTE: Code signing and notarization are not configured yet.
+      # To add them in the future, set these secrets and env vars:
+      #   CSC_LINK            — base64-encoded .p12 Developer ID certificate
+      #   CSC_KEY_PASSWORD    — certificate password
+      #   APPLE_ID            — Apple ID for notarization
+      #   APPLE_APP_SPECIFIC_PASSWORD
+      #   APPLE_TEAM_ID
+      - name: Build macOS app (electron-builder --mac)
+        run: npm run build:mac
+        env:
+          HAI_GITHUB_CLIENT_ID: ${{ secrets.HAI_GITHUB_CLIENT_ID }}
+
+      # ── 6. Publish GitHub Release ─────────────────────────────────────────
+      # electron-builder.config.ts sets `directories.output = "dist"`, so both
+      # arm64 and x64 DMGs land under dist/. The glob picks them all up.
+      # When triggered by workflow_dispatch (no tag), the release is a draft
+      # so it doesn't accidentally create a tag-less published release.
+      - name: Create GitHub Release and upload DMG(s)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**/*.dmg
+          draft: ${{ github.event_name == 'workflow_dispatch' }}
+          generate_release_notes: true
